@@ -7,8 +7,8 @@
 # Call Source File for Required Libraries and Functions
 
 source(file='PreRun.r')
-# tehsils <- read.csv("tehsils_mics.csv")
-# districts <- read.csv("districts_mics.csv")
+# tehsils <- read.csv("results/tehsils_mics.csv")
+# districts <- read.csv("results/districts_mics.csv")
 
 ## Read in Past EPI Level Extract Files to Get Vaccination Data and Combine Them
 
@@ -96,6 +96,7 @@ for(i in 1:length(epi_files)){
   tehsils_vacc_table = table(temp$TEHSIL)
   districts_vacc_table = table(temp$DISTRICT)
   
+  # tehsil
   for(j in 1:length(tehsils_vacc_table)){
     name <- as.character(names(tehsils_vacc_table[j]))
     vdf <- temp[which(temp$TEHSIL == name),]
@@ -110,6 +111,8 @@ for(i in 1:length(epi_files)){
     tehsils[which(tehsils$TEHSIL == name),]$penta2 <- as.numeric(ex$penta2) + instance.penta2
     tehsils[which(tehsils$TEHSIL == name),]$penta3 <- as.numeric(ex$penta3) + instance.penta3
   }
+  
+  # district
   for(k in 1:length(districts_vacc_table)){
     name <- as.character(names(districts_vacc_table[k]))
     vdf2 <- temp[which(temp$DISTRICT == name),]
@@ -138,11 +141,8 @@ districts$pentavalent3_vacc_per_capita <- districts$penta3 / districts$child_pop
 
 
 
-
-
-
-
-
+## Function to clean Individual EPI Files to ready them for Joining With Geographic Data
+## fl = Single EPI File
 
 clean_df2 <- function(fl){
   file1 <- read.csv(fl)
@@ -153,7 +153,10 @@ clean_df2 <- function(fl){
   file1$has_tehsil <- 1
   file1[(file1$town_name == ""),]$has_tehsil <- 0
   file1 <- file1[grepl('penta',file1$Vaccination,ignore.case=TRUE),]
+  # file1 <- file1[grepl('penta',file1$Vaccination),]
+  
   no_town <- file1[(file1$has_tehsil == 0),]
+  # no_town <- file1[which(file1$has_tehsil == 0),]
   no_town$valid <- 1
   no_town$valid[no_town$lat == "0.0"] <- 0
   no_town$valid[grep("-", no_town$lat)] <- 0
@@ -352,87 +355,6 @@ for(i in NROW(pj)){
   else{
     print(pj$TEHSIL[i])
   }
-}
-
-clean_df2 <- function(fl){
-  file1 <- read.csv(fl)
-  file1 <- file1[,-10]
-  file1 <- file1[!duplicated(file1), ]
-  file1 <- file1 %>%
-    separate(location, into = c('lat', 'long'), sep=",")
-  file1$has_tehsil <- 1
-  file1[(file1$town_name == ""),]$has_tehsil <- 0
-  file1 <- file1[grepl('penta',file1$Vaccination,ignore.case=TRUE),]
-  no_town <- file1[(file1$has_tehsil == 0),]
-  no_town$valid <- 1
-  no_town$valid[no_town$lat == "0.0"] <- 0
-  no_town$valid[grep("-", no_town$lat)] <- 0
-  no_town$valid[no_town$long == "0.0"] <- 0
-  no_town$valid[grep("-", no_town$long)] <- 0
-  no_town$valid[grep("\n", no_town$long)] <- 0
-  no_town$valid[grep("\n", no_town$lat)] <- 0
-  no_town <- transform(no_town, lat = as.numeric(lat), 
-                       long = as.numeric(long))
-  no_town$valid[no_town$long < 60  || no_town$lat < 20 || no_town$long >90 || no_town$lat > 50] <- 0
-  use_coords <- no_town[(no_town$valid == 1),]
-  use_coords <- na.exclude(use_coords)
-  coordinates(use_coords)<- ~long +lat
-  proj4string(use_coords) <- proj4string(tehsils_shp)
-  f_pts <- over(use_coords, tehsils_shp)
-  use_tehsil <- file1[(file1$has_tehsil == 1),]
-  new_use_coords <- f_pts[,c(3,4)]
-  new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
-  new_use_tehs <- use_tehsil[,c(2,3,5,6,7)]
-  new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
-  colnames(new_use_tehs)[colnames(new_use_tehs)=="town_name"] <- "TEHSIL"
-  colnames(new_use_tehs)[colnames(new_use_tehs)=="district_name"] <- "DISTRICT"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
-  colnames(new_use_tehs)[colnames(new_use_tehs) == "daily_reg_no"] <- "Vaccination"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
-  #print(names(new_use_coords))
-  #print(names(new_use_tehs))
-  new_use_coords[complete.cases(new_use_coords$TEHSIL),]
-}
-
-clean_df2 <- function(fl){
-  file1 <- read.csv(fl)
-  file1 <- file1[,-10]
-  file1 <- file1[!duplicated(file1), ]
-  file1 <- file1 %>%
-    separate(location, into = c('lat', 'long'), sep=",")
-  file1$has_tehsil <- 1
-  file1[(file1$town_name == ""),]$has_tehsil <- 0
-  file1 <- file1[grepl('penta',file1$Vaccination),]
-  no_town <- file1[which(file1$has_tehsil == 0),]
-  
-  no_town$valid <- 1
-  no_town$valid[no_town$lat == "0.0"] <- 0
-  no_town$valid[grep("-", no_town$lat)] <- 0
-  no_town$valid[no_town$long == "0.0"] <- 0
-  no_town$valid[grep("-", no_town$long)] <- 0
-  no_town$valid[grep("\n", no_town$long)] <- 0
-  no_town$valid[grep("\n", no_town$lat)] <- 0
-  no_town <- transform(no_town, lat = as.numeric(lat), 
-                       long = as.numeric(long))
-  no_town$valid[no_town$long < 60  || no_town$lat < 20 || no_town$long >90 || no_town$lat > 50] <- 0
-  use_coords <- no_town[(no_town$valid == 1),]
-  use_coords <- na.exclude(use_coords)
-  coordinates(use_coords)<- ~long +lat
-  proj4string(use_coords) <- proj4string(tehsils_shp)
-  f_pts <- over(use_coords, tehsils_shp)
-  use_tehsil <- file1[(file1$has_tehsil == 1),]
-  new_use_coords <- f_pts[,c(3,4)]
-  new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
-  new_use_tehs <- use_tehsil[,c(2,3,5,6,7)]
-  new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
-  colnames(new_use_tehs)[colnames(new_use_tehs)=="town_name"] <- "TEHSIL"
-  colnames(new_use_tehs)[colnames(new_use_tehs)=="district_name"] <- "DISTRICT"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
-  colnames(new_use_tehs)[colnames(new_use_tehs) == "daily_reg_no"] <- "Vaccination"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
-  new_use_coords[complete.cases(new_use_coords$TEHSIL),]
 }
 
 
