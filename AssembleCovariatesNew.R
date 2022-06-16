@@ -154,6 +154,7 @@ for(i in 1:NROW(mal_pop_dfs)){
 
 # Distance to City Covariates ----
 
+## Tehsil ----
 distance_dt <- get(load('VaccinationStudy/Data/distance_to_cities_data.Rdata'))
 dis_df <- as.data.frame(distance_dt,xy=TRUE)
 
@@ -188,12 +189,49 @@ for(i in 1:NROW(dist_pop_df)){
 }
 
 
+## UC ----
+load('VaccinationStudy/Data/distance_to_cities_data.Rdata')
+dis_df <- as.data.frame(res,xy=TRUE) ##
+
+coordinates(dis_df)<- ~x +y
+proj4string(dis_df) <- proj4string(uc_shp)
+
+dist_pts <- over(dis_df, uc_shp)
+dist_binded <- cbind(dist_pts, dis_df$accessibility_to_cities_2015_v1.0)
+dist_binded_df <- data.frame("District" = dist_binded[,2],"Tehsil" = dist_binded[,3], "UC" = dist_binded[ ,4], "Population" = dist_binded[,20])
+dist_binded_df<- dist_binded_df %>% 
+  mutate(UC = toupper(UC))
+
+dist_poptable <- table(dist_binded_df$UC)
+dist_pop_df <- data.frame("UC" = names(dist_poptable))
+dist_pop_df$distance_to_cities <- 0
+
+for(i in 1:length(dist_poptable)){
+  dist_name <- names(dist_poptable)[i]
+  dist_cells <-dist_binded_df[which(dist_binded_df$UC == dist_name),]
+  dist_pop<- mean(dist_cells$Population,na.rm=TRUE)
+  dist_pop_df[which(dist_pop_df$UC == dist_name),]$distance_to_cities <- dist_pop
+}
+uc_test$distance_to_cities <- 0
+for(i in 1:NROW(dist_pop_df)){
+  dist_cell <- dist_pop_df[i,]
+  if(NROW(uc_test[which(uc_test$UC == toupper(dist_cell$UC)),]$distance_to_cities) > 0){
+    uc_test[which(uc_test$UC == toupper(dist_cell$UC)),]$distance_to_cities <- dist_cell$distance_to_cities
+  }
+}
+
+# write.csv(uc_test, "D:\\Xiaoting\\Vaccination_Project\\results\\uc_covar_test.csv")
+
+
+
 # Extract Population Covariate ----
 # Note: This file is very large and will take awhile to run
 
 total_population <- read.csv(file = 'VaccinationStudy/Data/population_pak_2018-10-01.csv')
 tehsils$Population <- 0
 districts$Population <- 0
+uc_test$Population <- 0
+### 6/16
 
 coordinates(total_population)<- ~longitude +latitude
 proj4string(total_population) <- proj4string(tehsils_shp)
@@ -228,6 +266,7 @@ for(i in 1:NROW(total_pop_dfs)){
   name <- solve_name(cell$Tehsil)
   tehsils[which(tehsils$TEHSIL == toupper(name)),]$Population <- cell$population
 }
+
 
 # Extract Child Population Covariate ----
 # Note: This file is very large and will take awhile to run
