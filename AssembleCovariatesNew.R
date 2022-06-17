@@ -4,21 +4,6 @@
 
 source(file='PreRun.r')
 
-# Intake DSS Data ----
-### DSS data what for?
-dss_data <- read.csv(file = 'VaccinationStudy/Data/DSSData_3Years.csv')
-
-## Filter Data to only Children < 5 
-dss_data <- dss_data[(dss_data$Age < 5),]
-
-## Clean and Convert Tehsil (Town), Districts and UC Names As to Prepare Them for Joining With Geographic Data
-
-## Sys.setlocale(category="LC_ALL", locale = "English_United States.1252")
-colnames(dss_data)[colnames(dss_data)=="Town.Tehsil"] <- "TEHSIL"
-dss_data$TEHSIL <- sapply(toupper(dss_data$TEHSIL),solve_name)
-dss_data$DISTRICT <- sapply(toupper(dss_data$Patient.s.District),solve_district_name)
-dss_data$UC <- toupper(dss_data$UC)
-
 
 # Get Geographic Data from Shapefile ----
 ## Tehsil (Town) level ----
@@ -41,15 +26,15 @@ tehsils <- data.frame(tehsils)
 districts <- data.frame(districts)
 ucs <- data.frame(ucs)
 
-### Clean Geographic Field Names
-tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
-districts$DISTRICT <- sapply(districts$DISTRICT,solve_district_name)
-
-
 ### Isolate Punjab Data
 districts <- districts[which(districts$PROVINCE == 'PUNJAB'),]
 tehsils <- tehsils[which(tehsils$PROVINCE == 'PUNJAB'),]
 ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),]
+
+### Clean Geographic Field Names
+tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
+districts$DISTRICT <- sapply(districts$DISTRICT,solve_district_name)
+ucs <- solve_uc_name(ucs)
 
 ### Remove Tehsils that were Mistakenly Labelled as being in Punjab
 tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK','FAISALABAD SADDAR')),]
@@ -62,12 +47,19 @@ tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEH
 
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",1)
 districts <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",2)
+ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility")
+
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation",1)
 districts <- get_geovars("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation",2)
+ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation")
+
 tehsils <- get_geovars("VaccinationStudy/Data/pak07povmpi.tif","poverty",1)
 districts <- get_geovars("VaccinationStudy/Data/pak07povmpi.tif","poverty",2)
+ucs <- get_geovars_uc("VaccinationStudy/Data/pak07povmpi.tif","poverty")
+
 tehsils <- get_geovars("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights",1)
 districts <- get_geovars("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights",2)
+ucs <- get_geovars_uc("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights")
 
 
 # Distance to Lakes/Rivers Covariate ----
@@ -212,15 +204,15 @@ for(i in 1:length(dist_poptable)){
   dist_pop<- mean(dist_cells$Population,na.rm=TRUE)
   dist_pop_df[which(dist_pop_df$UC == dist_name),]$distance_to_cities <- dist_pop
 }
-uc_test$distance_to_cities <- 0
+ucs$distance_to_cities <- 0
 for(i in 1:NROW(dist_pop_df)){
   dist_cell <- dist_pop_df[i,]
-  if(NROW(uc_test[which(uc_test$UC == toupper(dist_cell$UC)),]$distance_to_cities) > 0){
-    uc_test[which(uc_test$UC == toupper(dist_cell$UC)),]$distance_to_cities <- dist_cell$distance_to_cities
+  if(NROW(ucs[which(ucs$UC == toupper(dist_cell$UC)),]$distance_to_cities) > 0){
+    ucs[which(ucs$UC == toupper(dist_cell$UC)),]$distance_to_cities <- dist_cell$distance_to_cities
   }
 }
 
-# write.csv(uc_test, "D:\\Xiaoting\\Vaccination_Project\\results\\uc_covar_test.csv")
+# write.csv(ucs, "D:\\Xiaoting\\Vaccination_Project\\results\\uc_covar_test_6.17.csv")
 
 
 
@@ -230,13 +222,13 @@ for(i in 1:NROW(dist_pop_df)){
 total_population <- read.csv(file = 'VaccinationStudy/Data/population_pak_2018-10-01.csv')
 tehsils$Population <- 0
 districts$Population <- 0
-uc_test$Population <- 0
-### 6/16
+ucs$Population <- 0
 
 coordinates(total_population)<- ~longitude +latitude
+
+## tehsil ----
 proj4string(total_population) <- proj4string(tehsils_shp)
 
-## memory.limit(size=56000)
 tehsil_pts <- over(total_population, tehsils_shp)
 
 total_binded <- cbind(tehsil_pts, total_population$population_2020)
@@ -268,11 +260,44 @@ for(i in 1:NROW(total_pop_dfs)){
 }
 
 
+## UC ----
+proj4string(total_population) <- proj4string(uc_shp)
+
+uc_pts <- over(total_population, uc_shp)
+
+total_binded <- cbind(uc_pts, total_population$population_2020)
+
+total_binded_df <- data.frame("UC" = total_binded[,4], "Population" =  total_binded[,20])
+total_binded_df<- total_binded_df %>% 
+  mutate(UC = toupper(UC))
+
+total_poptable <- table(total_binded_df$UC)
+total_pop_df <- data.frame("UC" = names(total_poptable))
+total_pop_df$population <- 0
+
+for(i in 1:length(total_poptable)){
+  total_name <- names(total_poptable)[i]
+  total_cells <- total_binded_df[which(total_binded_df$UC == total_name),]
+  total_pop<- sum(total_cells$Population,na.rm=TRUE)
+  total_pop_df[which(total_pop_df$UC == total_name),]$population <- total_pop
+}
+ucs$Population <- NA
+total_pop_dfs <- total_pop_df[which(total_pop_df$UC %in% ucs$UC),]
+
+for(i in 1:NROW(total_pop_dfs)){
+  cell <- total_pop_dfs[i,]
+  ucs[which(ucs$UC == toupper(cell$UC)),]$Population <- cell$population
+}
+
+
+
 # Extract Child Population Covariate ----
 # Note: This file is very large and will take awhile to run
 
 child_population <- read.csv(file = 'VaccinationStudy/Data/PAK_children_under_five_2019-08-03.csv')
 coordinates(child_population)<- ~longitude +latitude
+
+## tehsil ----
 proj4string(child_population) <- proj4string(tehsils_shp)
 
 pts <- over(child_population, tehsils_shp)
@@ -305,80 +330,50 @@ for(i in 1:NROW(pop_df)){
   tehsils[which(tehsils$TEHSIL == name),]$child_population <- cell$population
 }
 
-# Extract Population Covariate For Districts
-# Note: This file is very large and will take awhile to run
 
-coordinates(total_population)<- ~longitude +latitude
-proj4string(total_population) <- proj4string(districts_shp)
-
-pts <- over(total_population, districts_shp)
-
-total_binded <- cbind(pts, total_population$population_2020)
-
-total_binded_df <- data.frame("District" = total_binded[,3], "Population" =  total_binded[,9])
-total_binded_df<- total_binded_df %>% 
-  mutate(District = toupper(District))
-
-
-total_poptable <- table(total_binded_df$District)
-total_pop_df <- data.frame("District" = names(total_poptable))
-total_pop_df$population <- 0
-
-for(i in 1:length(total_poptable)){
-  total_name <- names(total_poptable)[i]
-  total_cells <- total_binded_df[which(total_binded_df$District == total_name),]
-  total_pop<- sum(total_cells$Population,na.rm=TRUE)
-  total_pop_df[which(total_pop_df$District == total_name),]$population <- total_pop
-}
-districts$Population <- NA
-total_pop_dfs <- total_pop_df[which(total_pop_df$District %in% districts$District),]
-for(i in 1:NROW(total_pop_dfs)){
-  cell <- total_pop_dfs[i,]
-  name <- solve_district_name(cell$District)    
-  districts[which(districts$DISTRICT == toupper(name)),]$Population <- cell$population
-}
-
-
-### Extract and Map Child Population Covariate to Districts Data
+## UC ----
 
 coordinates(child_population)<- ~longitude +latitude
-proj4string(child_population) <- proj4string(districts_shp)
+proj4string(child_population) <- proj4string(uc_shp)
 
-pts <- over(child_population, districts_shp)
+pts <- over(child_population, uc_shp)
 
 binded <- cbind(pts, child_population$population)
 
-binded_df <- data.frame("District" = binded[,3], "Population" = binded[,9])
+binded_df <- data.frame("UC" = binded[,4], "Population" = binded[,20])
 binded_df<- binded_df %>% 
-  mutate(District = toupper(District))
+  mutate(UC = toupper(UC))
 
-poptable <- table(binded_df$District)
-pop_df <- data.frame("District" = apply(data.frame(names(poptable)), 1, solve_district_name))
+poptable <- table(binded_df$UC)
+pop_df <- data.frame("UC" = names(poptable))
 pop_df$population <- 0
 
 for(i in 1:length(poptable)){
   name <- names(poptable)[i]
-  cells <- binded_df[which(binded_df$District == name),]
-  pop<- sum(cells$Population,na.rm=TRUE)
-  name <- solve_district_name(name)
-  pop_df[which(pop_df$District == name),]$population <- pop
+  cells <- binded_df[which(binded_df$UC == name),]
+  pop <- sum(cells$Population,na.rm=TRUE)
+  pop_df[which(pop_df$UC == name),]$population <- pop
 }
-pop_df <- pop_df[which(pop_df$District %in% districts$DISTRICT),]
-districts$child_population <- NA
+pop_df <- pop_df[which(pop_df$UC %in% ucs$UC),]
+ucs$child_population <- NA
 for(i in 1:NROW(pop_df)){
   cell <- pop_df[i,]
-  name <- solve_district_name(cell$District)
-  districts[which(districts$DISTRICT == name),]$child_population <- cell$population
+  name <- cell$UC
+  ucs[which(ucs$UC == name),]$child_population <- cell$population
 }
 
-### Get Population Density from existing columns and add to Tehsil and District Level Data as a Covariate
+
+
+# Population Density ----
 
 tehsils$population_density <- 0
 districts$population_density <- 0
+ucs$population_density <- 0
+
 
 tehsils$population_density <- tehsils$Population / tehsils$Shape_Area
 districts$population_density <- districts$Population / districts$Shape_Area
+ucs$population_density <- ucs$Population / ucs$Shape_Area
 
-write.csv(tehsils, "D:\\Xiaoting\\VaccinationProject\\tehsils_assemble.csv")
-write.csv(districts, "D:\\Xiaoting\\VaccinationProject\\districts_assemble.csv")
 
+write.csv(ucs, "D:\\Xiaoting\\Vaccination_Project\\results\\ucs_covariates.csv")
