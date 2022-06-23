@@ -78,6 +78,7 @@ get_geovars <- function(f,attr,res){
 get_geovars_uc <- function(f,attr){
   file <- as.data.frame(raster(f),xy=TRUE)
   coordinates(file)<- ~x +y
+  # returns a spatialpoint dataframe
   proj4string(file) <- proj4string(uc_shp)  
   pts <- over(file,uc_shp)    
   names(file)[1] <- "Attr"

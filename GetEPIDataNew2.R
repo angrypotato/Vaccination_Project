@@ -1,12 +1,15 @@
-
+## revised from the github version
 
 ## Purpose: To Extract Vaccination Data and Map To Tehsil and District Level Geographic Data 
 
 ## Note that these Files are Large and Data Manipulation May Take a While
 
-# Call Source File for Required Libraries and Functions
 
-source(file='VaccinationStudy/PreRun.r')
+# Pre ----
+
+## Call Source File for Required Libraries and Functions 
+
+source(file='PreRunNew.r')
 
 ## Read in Past EPI Level Extract Files to Get Vaccination Data and Combine Them
 
@@ -21,6 +24,7 @@ epi_files <- c(epi_files_17,non_epi_files_17,epi_files_18,non_epi_files_18,
                epi_files_19,non_epi_files_19)
 
 ## Function to clean Individual EPI Files to ready them for Joining With Geographic Data
+## output location and vacc info for each month
 ## fl = Single EPI File
 
 clean_df2 <- function(fl){
@@ -46,8 +50,8 @@ clean_df2 <- function(fl){
   use_coords <- no_town[(no_town$valid == 1),]
   use_coords <- na.exclude(use_coords)
   coordinates(use_coords)<- ~long +lat
-  proj4string(use_coords) <- proj4string(tehsils_polygon)
-  f_pts <- over(use_coords, tehsils_polygon)
+  proj4string(use_coords) <- proj4string(tehsils_shp)
+  f_pts <- over(use_coords, tehsils_shp)
   use_tehsil <- file1[(file1$has_tehsil == 1),]
   new_use_coords <- f_pts[,c(3,4)]
   new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
@@ -62,7 +66,10 @@ clean_df2 <- function(fl){
   new_use_coords[complete.cases(new_use_coords$TEHSIL),]
 }
 
-### Extract Penta Vacc Stats for Tehsils and Districts
+
+
+
+# Extract Penta Vacc Stats for Tehsils and Districts ---- 
 
 # Note that Penta1 = Pentavalent Vaccine Dose 1; Penta2 = Pentavalent Dose 2; Penta3 = Pentavalent Dose 3
 
@@ -70,14 +77,15 @@ clean_df2 <- function(fl){
 
 # Read in Data Regarding Punjab Clinics - the goal is to differentiate between vaccinations given at clinics vs those done via outreach
 
-facilities <- read.csv('VaccinationStudy/Data/Facilities_location.csv')
+facilities <- readxl::read_xls('VaccinationStudy/Data/Facilities_location.xls')
 
 facilities$latitude_high <- facilities$latitude + facilities$Latitude_rad
 facilities$latitude_low <- facilities$latitude - facilities$Latitude_rad
 facilities$longitude_high <- facilities$longitude + facilities$Long_rad
 facilities$longitude_low <- facilities$longitude - facilities$Long_rad
 
-facilities$latitude_high <- facilities$latitude + .001
+### ??
+facilities$latitude_high <- facilities$latitude + 0.125
 facilities$latitude_low <- facilities$latitude - .125
 facilities$longitude_high <- facilities$longitude + .125
 facilities$longitude_low <- facilities$longitude - .125
@@ -102,10 +110,10 @@ tehsils$penta3_in_clinic <- 0
 tehsils$penta1_out_clinic <- 0
 tehsils$penta3_out_clinic <- 0
 
-districts$penta1_in_clinic <- 0
-districts$penta3_in_clinic <- 0
-districts$penta1_out_clinic <- 0
-districts$penta3_out_clinic <- 0
+ucs$penta1_in_clinic <- 0
+ucs$penta3_in_clinic <- 0
+ucs$penta1_out_clinic <- 0
+ucs$penta3_out_clinic <- 0
 
 facilities$penta1 <- 0
 facilities$penta3 <- 0
@@ -119,13 +127,20 @@ for(file in 1:length(epi_files)){
   f <- clean_df2(epi_files[file])
   f$Vaccination <- tolower(f$Vaccination)
   f$TEHSIL <- toupper(f$TEHSIL)
+  
+  ## in clinic
   for(fa in 1:NROW(facilities)){
     fac <- facilities[fa,]
     name <- fac$facility_name
     clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
                         & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+    # filter obs in the facility radius
+    
     num_clinic <- NROW(clinic_f)
+    # include those with neither penta1 nor penta3?
     facilities[which(facilities$facility_name == name),]$TEHSIL <- clinic_f[1,]$TEHSIL
+    # clinic_f includes different tehsils; problem in lat&long adjustment?
+    
     facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
     if(is.na(facilities[which(facilities$facility_name == name),]$TEHSIL)){
       next
@@ -135,13 +150,17 @@ for(file in 1:length(epi_files)){
     in_clinics <- in_clinics + NROW(clinic_f)
     clinic_f$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(clinic_f$Vaccination)),1,0)
     clinic_f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(clinic_f$Vaccination)),1,0)
+    # whether this obs got penta1 vacc
+    
     instance.penta1 <- sum(clinic_f$has_penta1)
     instance.penta3<- sum(clinic_f$has_penta3)
-    tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic + sum(clinic_f$has_penta1)
-    tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic + sum(clinic_f$has_penta3)
+    tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic + instance.penta1
+    tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic + instance.penta3
     facilities[(facilities$facility_name == name),]$penta1 <- facilities[(facilities$facility_name == name),]$penta1 + instance.penta1
     facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
   }
+  
+  # out clinic
   out_clinics <- out_clinics + (NROW(f) - in_clinics)
   for(k in 1:NROW(tehsils)){
     t <- tehsils$TEHSIL[k]
@@ -242,7 +261,7 @@ clean_df <- function(fl){
   use_coords <- na.exclude(use_coords)
   
   coordinates(use_coords)<- ~long +lat
-  proj4string(use_coords) <- proj4string(tehsils_polygon)
+  proj4string(use_coords) <- proj4string(tehsils_shp)
   f_pts <- over(use_coords, tehsils_shp)
   use_tehsil <- file1[which(file1$has_tehsil == 1),]
   new_use_coords <- f_pts[,c(3,4)]
