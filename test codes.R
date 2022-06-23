@@ -288,7 +288,7 @@ for(fa in 1:NROW(facilities)){
 }
 
 
-# out clinic
+### out clinic
 out_clinics <- out_clinics + (NROW(f) - in_clinics)
 for(k in 1:NROW(tehsils)){
   t <- tehsils$TEHSIL[k]
@@ -305,4 +305,135 @@ for(k in 1:NROW(tehsils)){
   penta3_out <- fpenta3 - tehsils[(tehsils$TEHSIL == t),]$penta3_in_clinic
   tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic + penta1_out
   tehsils[which(tehsils$TEHSIL == t),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta3_out_clinic + penta3_out
+}
+
+
+### whole loop
+
+in_clinics <- 0
+out_clinics <- 0
+
+### tehsil
+
+for(file in 1:length(epi_files)){
+  f <- clean_df2(epi_files[file])
+  f$Vaccination <- tolower(f$Vaccination)
+  f$TEHSIL <- toupper(f$TEHSIL)
+  
+  ## in clinic
+  for(fa in 1:NROW(facilities)){
+    fac <- facilities[fa,]
+    name <- fac$facility_name
+    clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
+                               & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+    # filter obs in the facility radius
+    
+    clinic_f$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(clinic_f$Vaccination)),1,0)
+    clinic_f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(clinic_f$Vaccination)),1,0)
+    
+    num_clinic <- NROW(clinic_f)
+    in_clinics <- in_clinics + num_clinic
+    
+    if (num_clinic >0) {
+      facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
+      
+      num_teh <- length(unique(clinic_f$TEHSIL))
+      for (t in 1:num_teh) {
+        teh_name <- unique(clinic_f$TEHSIL)[t]
+        tehs <- teh_name
+        
+        instance.penta1 <- sum(clinic_f$has_penta1[which(clinic_f$TEHSIL == tehs)])
+        instance.penta3<- sum(clinic_f$has_penta3[which(clinic_f$TEHSIL == tehs)])
+        tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic + instance.penta1
+        tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic + instance.penta3
+        facilities[(facilities$facility_name == name),]$penta1 <- facilities[(facilities$facility_name == name),]$penta1 + instance.penta1
+        facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
+        
+      }
+    }
+    
+  }
+  
+  # out clinic
+  out_clinics <- out_clinics + (NROW(f) - in_clinics)
+  for(k in 1:NROW(tehsils)){
+    t <- tehsils$TEHSIL[k]
+    if(is.na(t)){
+      next
+    }
+    ftable <- f[(f$TEHSIL == t),]
+    fnum <- NROW(ftable)
+    ftable$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(ftable$Vaccination)),1,0)
+    ftable$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(ftable$Vaccination)),1,0)
+    fpenta1 <- sum(ftable$has_penta1)
+    fpenta3<- sum(ftable$has_penta3)
+    penta1_out <- fpenta1 - tehsils[(tehsils$TEHSIL == t),]$penta1_in_clinic
+    penta3_out <- fpenta3 - tehsils[(tehsils$TEHSIL == t),]$penta3_in_clinic
+    tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic + penta1_out
+    tehsils[which(tehsils$TEHSIL == t),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta3_out_clinic + penta3_out
+  }
+}
+
+
+
+
+
+### uc level
+
+for(file in 1:length(epi_files)){
+  f <- clean_df2(epi_files[file])    ### function revision
+  f$Vaccination <- tolower(f$Vaccination)
+  f$UC <- toupper(f$UC)
+  
+  ## in clinic
+  for(fa in 1:NROW(facilities)){
+    fac <- facilities[fa,]
+    name <- fac$facility_name
+    clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
+                        & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+    # filter obs in the facility radius
+    
+    clinic_f$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(clinic_f$Vaccination)),1,0)
+    clinic_f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(clinic_f$Vaccination)),1,0)
+    
+    num_clinic <- NROW(clinic_f)
+    in_clinics <- in_clinics + num_clinic
+    
+    if (num_clinic >0) {
+      facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
+      
+      num_teh <- length(unique(clinic_f$TEHSIL))
+      for (t in 1:num_teh) {
+        uc_name <- unique(clinic_f$UC)[t]
+        
+        instance.penta1 <- sum(clinic_f$has_penta1[which(clinic_f$TEHSIL == uc_name)])
+        instance.penta3<- sum(clinic_f$has_penta3[which(clinic_f$TEHSIL == uc_name)])
+        tehsils[(tehsils$TEHSIL == uc_name),]$penta1_in_clinic <- tehsils[(tehsils$TEHSIL == uc_name),]$penta1_in_clinic + instance.penta1
+        tehsils[(tehsils$TEHSIL == uc_name),]$penta3_in_clinic <- tehsils[(tehsils$TEHSIL == uc_name),]$penta3_in_clinic + instance.penta3
+        facilities[(facilities$facility_name == name),]$penta1 <- facilities[(facilities$facility_name == name),]$penta1 + instance.penta1
+        facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
+        
+      }
+    }
+    
+  }
+  
+  # out clinic
+  out_clinics <- out_clinics + (NROW(f) - in_clinics)
+  for(k in 1:NROW(tehsils)){
+    t <- tehsils$TEHSIL[k]
+    if(is.na(t)){
+      next
+    }
+    ftable <- f[(f$TEHSIL == t),]
+    fnum <- NROW(ftable)
+    ftable$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(ftable$Vaccination)),1,0)
+    ftable$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(ftable$Vaccination)),1,0)
+    fpenta1 <- sum(ftable$has_penta1)
+    fpenta3<- sum(ftable$has_penta3)
+    penta1_out <- fpenta1 - tehsils[(tehsils$TEHSIL == t),]$penta1_in_clinic
+    penta3_out <- fpenta3 - tehsils[(tehsils$TEHSIL == t),]$penta3_in_clinic
+    tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic + penta1_out
+    tehsils[which(tehsils$TEHSIL == t),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta3_out_clinic + penta3_out
+  }
 }

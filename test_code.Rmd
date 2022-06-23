@@ -1,0 +1,86 @@
+
+
+```{r Data: combine }
+
+epi_17 = lapply(epi_files_17, read_csv)
+
+mon1 <- epi_17[[1]]
+mon2 <- epi_17[[2]]
+mon3 <- epi_17[[3]]
+mon4 <- epi_17[[4]]
+mon5 <- epi_17[[5]]
+mon6 <- epi_17[[6]]
+mon7 <- epi_17[[7]]
+mon8 <- epi_17[[8]]
+mon9 <- epi_17[[9]]
+mon10 <- epi_17[[10]]
+mon11<- epi_17[[11]]
+mon12 <- epi_17[[12]]
+
+mon1 = mon1[grepl('pentavalent-3',mon1$Vaccination,ignore.case=TRUE),]
+mon2 = mon2[grepl('pentavalent-3',mon2$Vaccination,ignore.case=TRUE),]
+mon3 = mon3[grepl('pentavalent-3',mon3$Vaccination,ignore.case=TRUE),]
+mon4 = mon4[grepl('pentavalent-3',mon4$Vaccination,ignore.case=TRUE),]
+mon5 = mon5[grepl('pentavalent-3',mon5$Vaccination,ignore.case=TRUE),]
+mon6 = mon6[grepl('pentavalent-3',mon6$Vaccination,ignore.case=TRUE),]
+mon7 = mon7[grepl('pentavalent-3',mon7$Vaccination,ignore.case=TRUE),]
+mon8 = mon8[grepl('pentavalent-3',mon8$Vaccination,ignore.case=TRUE),]
+mon9 = mon9[grepl('pentavalent-3',mon9$Vaccination,ignore.case=TRUE),]
+mon10 = mon10[grepl('pentavalent-3',mon10$Vaccination,ignore.case=TRUE),]
+mon11 = mon11[grepl('pentavalent-3',mon11$Vaccination,ignore.case=TRUE),]
+mon12 = mon12[grepl('pentavalent-3',mon12$Vaccination,ignore.case=TRUE),]
+
+epi_17 <- rbind(mon1, mon2, mon3, mon4, mon5, mon6, mon7, mon8,  mon9, mon10, mon11, mon12)
+glimpse(epi_17)
+tabyl(is.na(epi_17$epi_no))
+tabyl(is.na(epi_17$cnic))
+
+```
+
+
+```{r}
+
+nonepi_17 = lapply(non_epi_files_17, read_csv)
+
+mon1 <- nonepi_17[[1]]
+mon2 <- nonepi_17[[2]]
+mon3 <- nonepi_17[[3]]
+mon4 <- nonepi_17[[4]]
+mon5 <- nonepi_17[[5]]
+mon6 <- nonepi_17[[6]]
+mon7 <- nonepi_17[[7]]
+mon8 <- nonepi_17[[8]]
+mon9 <- nonepi_17[[9]]
+mon10 <- nonepi_17[[10]]
+mon11<- nonepi_17[[11]]
+mon12 <- nonepi_17[[12]]
+
+mon1 = mon1[grepl('pentavalent-3',mon1$Vaccination,ignore.case=TRUE),]
+mon2 = mon2[grepl('pentavalent-3',mon2$Vaccination,ignore.case=TRUE),]
+mon3 = mon3[grepl('pentavalent-3',mon3$Vaccination,ignore.case=TRUE),]
+mon4 = mon4[grepl('pentavalent-3',mon4$Vaccination,ignore.case=TRUE),]
+mon5 = mon5[grepl('pentavalent-3',mon5$Vaccination,ignore.case=TRUE),]
+mon6 = mon6[grepl('pentavalent-3',mon6$Vaccination,ignore.case=TRUE),]
+mon7 = mon7[grepl('pentavalent-3',mon7$Vaccination,ignore.case=TRUE),]
+mon8 = mon8[grepl('pentavalent-3',mon8$Vaccination,ignore.case=TRUE),]
+mon9 = mon9[grepl('pentavalent-3',mon9$Vaccination,ignore.case=TRUE),]
+mon10 = mon10[grepl('pentavalent-3',mon10$Vaccination,ignore.case=TRUE),]
+mon11 = mon11[grepl('pentavalent-3',mon11$Vaccination,ignore.case=TRUE),]
+mon12 = mon12[grepl('pentavalent-3',mon12$Vaccination,ignore.case=TRUE),]
+
+nonepi_17 <- rbind(mon1, mon2, mon3, mon4, mon5, mon6, mon7, mon8,  mon9, mon10, mon11, mon12)
+
+
+```
+
+
+```{r}
+
+tabyl(is.na(epi_17$epi_no))
+tabyl(is.na(nonepi_17$epi_no))
+
+tabyl(is.na(epi_17$cnic))
+tabyl(is.na(nonepi_17$cnic))
+
+```
+

@@ -2,7 +2,7 @@
 
 # Call Source File for Required Libraries and Functions ----
 
-source(file='PreRun.r')
+source(file='PreRunNew.r')
 
 
 # Get Geographic Data from Shapefile ----
@@ -42,8 +42,8 @@ tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK','FAISALABAD SADDAR')),]
 ### Sahiwal is the name of 2 tehsils, one in Sahiwal district and another outside, therefore lets name the sahiwal in the sahiwal district - SAHIWAL_SAHIWAL
 tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
 
-
-# Join Fertility, Elevation, Poverty and Night Lights Covariates ----
+ 
+ # Join Fertility, Elevation, Poverty and Night Lights Covariates ----
 
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",1)
 districts <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",2)
