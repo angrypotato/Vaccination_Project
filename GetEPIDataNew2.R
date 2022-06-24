@@ -79,26 +79,12 @@ clean_df2 <- function(fl){
 
 facilities <- readxl::read_xls('VaccinationStudy/Data/Facilities_location.xls')
 
-facilities$latitude_high <- facilities$latitude + facilities$Latitude_rad
-facilities$latitude_low <- facilities$latitude - facilities$Latitude_rad
-facilities$longitude_high <- facilities$longitude + facilities$Long_rad
-facilities$longitude_low <- facilities$longitude - facilities$Long_rad
+## 200m buffer (approximately)
 
-### ??
-facilities$latitude_high <- facilities$latitude + 0.125
-facilities$latitude_low <- facilities$latitude - .125
-facilities$longitude_high <- facilities$longitude + .125
-facilities$longitude_low <- facilities$longitude - .125
-
-facilities$latitude_high <- facilities$latitude + .0025
-facilities$latitude_low <- facilities$latitude - .0025
-facilities$longitude_high <- facilities$longitude + .0025
-facilities$longitude_low <- facilities$longitude - .0025
-
-facilities$latitude_high <- facilities$latitude + .001
-facilities$latitude_low <- facilities$latitude - .001
-facilities$longitude_high <- facilities$longitude + .001
-facilities$longitude_low <- facilities$longitude - .001
+facilities$latitude_high <- facilities$latitude + .0015
+facilities$latitude_low <- facilities$latitude - .0015
+facilities$longitude_high <- facilities$longitude + .0015
+facilities$longitude_low <- facilities$longitude - .0015
 
 
 # Prepare the variables to be filled in via the EPI Files
@@ -150,7 +136,7 @@ for(file in 1:length(epi_files)){
     in_clinics <- in_clinics + NROW(clinic_f)
     clinic_f$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(clinic_f$Vaccination)),1,0)
     clinic_f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(clinic_f$Vaccination)),1,0)
-    # whether this obs got penta1 vacc
+    # whether this obs got penta vacc
     
     instance.penta1 <- sum(clinic_f$has_penta1)
     instance.penta3<- sum(clinic_f$has_penta3)
@@ -344,3 +330,92 @@ tehsils$pentavalent3_vacc_per_capita <- tehsils$penta3 / tehsils$child_populatio
 districts$pentavalent1_vacc_per_capita <- districts$penta1 / districts$child_population
 districts$pentavalent2_vacc_per_capita <- districts$penta2 / districts$child_population
 districts$pentavalent3_vacc_per_capita <- districts$penta3 / districts$child_population
+
+
+##########  this works
+
+### clear up
+in_clinics <- 0
+out_clinics <- 0
+
+in_clinics <- 0
+out_clinics <- 0
+tehsils$penta1_in_clinic <- 0
+tehsils$penta3_in_clinic <- 0
+tehsils$penta1_out_clinic <- 0
+tehsils$penta3_out_clinic <- 0
+
+facilities$penta1 <- 0
+facilities$penta3 <- 0
+facilities$TEHSIL <- ""
+facilities$in_clinic <- 0
+facilities$out_clinic <- 0
+
+tot.instance.penta1 <- 0
+tot.instance.penta3 <- 0
+
+### tehsil
+
+for(file in 1:length(epi_files)){
+  f <- clean_df2(epi_files[file])
+  f$Vaccination <- tolower(f$Vaccination)
+  f$TEHSIL <- toupper(f$TEHSIL)
+  
+  
+epi_test$has_penta1 <- 0
+epi_test$has_penta3 <- 0
+
+epi_test$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(epi_test$Vaccination)),1,0)
+epi_test$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(epi_test$Vaccination)),1,0)
+
+in_clinics<- tehsils$penta3_in_clinic
+
+### in_clinic or outreach
+for(fa in 1:NROW(facilities)){
+  fac <- facilities[fa,]
+  name <- fac$facility_name
+  
+  # filter obs in the facility radius
+  clinic_f <- epi_test[which(epi_test$long >= fac$longitude_low & epi_test$long <= fac$longitude_high
+                             & epi_test$lat <= fac$latitude_high & epi_test$lat >= fac$latitude_low),]
+  num_clinic <- NROW(clinic_f)
+  
+  if (num_clinic >0) {
+    facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
+    num_teh <- length(unique(clinic_f$TEHSIL))
+    for (t in 1:num_teh) {
+      tehs <- unique(clinic_f$TEHSIL)[t]
+      
+      instance.penta1 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta1)
+      instance.penta3 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta3)
+      # instance of each tehsil
+      
+      tot.instance.penta1 <- tot.instance.penta1 + instance.penta1
+      tot.instance.penta3 <- tot.instance.penta3 + instance.penta3
+      
+      tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic + instance.penta1
+      tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic + instance.penta3
+      facilities[(facilities$facility_name == name),]$penta1 <- facilities[(facilities$facility_name == name),]$penta1 + instance.penta1
+      facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
+      
+    }
+  }  
+}
+
+for(k in 1:NROW(tehsils)) {    ###
+  tehs <- tehsils$TEHSIL[k]
+  ###
+  out_clinics <- out_clinics + (NROW(epi_test[which(epi_test$has_penta3 == 1),]) - in_clinics)
+  if(is.na(tehs)){
+    next
+  }
+  ftable <- epi_test[which((epi_test$TEHSIL == tehs) & (epi_test$has_penta3 == 1)),]
+  fpenta1 <- sum(ftable$has_penta1)
+  fpenta3<- sum(ftable$has_penta3)
+  ### in_clinic obs in this file of this tehsil
+  penta3_out <- fpenta3 - (tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic - in_clinics[k])
+  
+  tehsils[which(tehsils$TEHSIL == tehs),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_out_clinic + penta3_out
+}
+}
+########## this works
