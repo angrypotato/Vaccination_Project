@@ -27,7 +27,7 @@ epi_files <- c(epi_files_17,non_epi_files_17,epi_files_18,non_epi_files_18,
 ## output location and vacc info for each month
 ## fl = Single EPI File
 
-clean_df2 <- function(fl){
+clean_df <- function(fl){
   file1 <- read.csv(fl)
   file1 <- file1[,-10]
   file1 <- file1[!duplicated(file1), ]
@@ -337,38 +337,34 @@ districts$pentavalent3_vacc_per_capita <- districts$penta3 / districts$child_pop
 ### clear up
 in_clinics <- 0
 out_clinics <- 0
+tot.instance.penta3 <- 0
 
-in_clinics <- 0
-out_clinics <- 0
-tehsils$penta1_in_clinic <- 0
 tehsils$penta3_in_clinic <- 0
-tehsils$penta1_out_clinic <- 0
 tehsils$penta3_out_clinic <- 0
 
-facilities$penta1 <- 0
+ucs$penta3_in_clinic <- 0
+ucs$penta3_out_clinic <- 0
+
 facilities$penta3 <- 0
 facilities$TEHSIL <- ""
 facilities$in_clinic <- 0
 facilities$out_clinic <- 0
 
-tot.instance.penta1 <- 0
-tot.instance.penta3 <- 0
 
 ### tehsil
 
 for(file in 1:length(epi_files)){
-  f <- clean_df2(epi_files[file])
+  f <- clean_df(epi_files[file])
   f$Vaccination <- tolower(f$Vaccination)
   f$TEHSIL <- toupper(f$TEHSIL)
   
-  f$has_penta1 <- 0
   f$has_penta3 <- 0
-  f$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(f$Vaccination)),1,0)
   f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(f$Vaccination)),1,0)
+  tot.instance.penta3 <- tot.instance.penta3 + sum(f$has_penta3)  # global index
   
-  in_clinics<- tehsils$penta3_in_clinic
+  in_clinics <- tehsils$penta3_in_clinic   # local index recording data before running this file
   
-  ### in_clinic 
+  ### in clinic 
   for(fa in 1:NROW(facilities)){
     fac <- facilities[fa,]
     name <- fac$facility_name
@@ -380,22 +376,16 @@ for(file in 1:length(epi_files)){
     num_clinic <- NROW(clinic_f)
     if (num_clinic >0) {
       facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
-      num_teh <- length(unique(clinic_f$TEHSIL))
+      
+      num_teh <- length(unique(clinic_f$TEHSIL))   # for different tehsils in the clinic range
       for (t in 1:num_teh) {
         tehs <- unique(clinic_f$TEHSIL)[t]
         
-        instance.penta1 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta1)
-        instance.penta3 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta3)
-        # instance of each tehsil
+        instance.penta3 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta3)  
+        # instance of inclinic_penta3 in each tehsil
         
-        tot.instance.penta1 <- tot.instance.penta1 + instance.penta1
-        tot.instance.penta3 <- tot.instance.penta3 + instance.penta3
-        
-        tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta1_in_clinic + instance.penta1
         tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic + instance.penta3
-        facilities[(facilities$facility_name == name),]$penta1 <- facilities[(facilities$facility_name == name),]$penta1 + instance.penta1
         facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
-        
       }
     }  
   }
@@ -403,13 +393,11 @@ for(file in 1:length(epi_files)){
   # outreach
   for(k in 1:NROW(tehsils)) { 
     tehs <- tehsils$TEHSIL[k]
-    ###
-    out_clinics <- out_clinics + (NROW(f[which(f$has_penta3 == 1),]) - in_clinics)
     if(is.na(tehs)){
       next
     }
+    
     ftable <- f[which((f$TEHSIL == tehs) & (f$has_penta3 == 1)),]
-    fpenta1 <- sum(ftable$has_penta1)
     fpenta3<- sum(ftable$has_penta3)
     ### in_clinic obs in this file of this tehsil
     penta3_out <- fpenta3 - (tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic - in_clinics[k])
@@ -418,4 +406,99 @@ for(file in 1:length(epi_files)){
   }
   
 }
+
 ########## this works
+
+# clean_df_uc works
+clean_df_uc <- function(fl){
+  file1 <- read.csv(fl)
+  file1 <- file1[,-10]
+  file1 <- file1[!duplicated(file1), ]
+  file1 <- file1 %>%
+    separate(location, into = c('lat', 'long'), sep=",")
+  file1$has_uc <- 1
+  file1[(file1$uc_name == ""),]$has_uc <- 0
+  file1 <- file1[grepl('Pentavalent-3',file1$Vaccination,ignore.case=TRUE),]
+  no_uc <- file1[(file1$has_uc == 0),]
+  no_uc$valid <- 1
+  no_uc$valid[no_uc$lat == "0.0"] <- 0
+  no_uc$valid[grep("-", no_uc$lat)] <- 0
+  no_uc$valid[no_uc$long == "0.0"] <- 0
+  no_uc$valid[grep("-", no_uc$long)] <- 0
+  no_uc$valid[grep("\n", no_uc$long)] <- 0
+  no_uc$valid[grep("\n", no_uc$lat)] <- 0
+  no_uc <- transform(no_uc, lat = as.numeric(lat),
+                       long = as.numeric(long))
+  no_uc$valid[no_uc$long < 60  || no_uc$lat < 20 || no_uc$long >90 || no_uc$lat > 50] <- 0
+  use_coords <- no_uc[(no_uc$valid == 1),]
+  use_coords <- na.exclude(use_coords)
+  coordinates(use_coords)<- ~long +lat
+  proj4string(use_coords) <- proj4string(uc_shp)
+  f_pts <- over(use_coords, uc_shp)
+  use_uc <- file1[(file1$has_uc == 1),]
+  new_use_coords <- f_pts[,c(3,4)]
+  new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
+  new_use_uc <- use_uc[,c(2,3,5,6,7)]
+  new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
+  colnames(new_use_uc)[colnames(new_use_uc)=="uc_name"] <- "UC"
+  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
+  colnames(new_use_uc)[colnames(new_use_uc) == "daily_reg_no"] <- "Vaccination"
+  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
+  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
+  new_use_coords[complete.cases(new_use_coords$UC),]
+}
+
+
+### uc
+
+for(file in 1:length(epi_files)){
+  f <- clean_df_uc(epi_files[file])
+  f$Vaccination <- tolower(f$Vaccination)
+  f$UC <- toupper(f$UC)
+  
+  f$has_penta3 <- 0
+  f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(f$Vaccination)),1,0)
+  tot.instance.penta3 <- tot.instance.penta3 + sum(f$has_penta3)  # global index
+  
+  in_clinics <- ucs$penta3_in_clinic   # local index recording data before running this file
+  
+  ### in clinic 
+  for(fa in 1:NROW(facilities)){
+    fac <- facilities[fa,]
+    name <- fac$facility_name
+    
+    # filter obs in the facility radius
+    clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
+                        & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+    
+    num_clinic <- NROW(clinic_f)
+    if (num_clinic >0) {
+     
+      num_teh <- length(unique(clinic_f$UC))   # for different ucs in the clinic range
+      for (t in 1:num_teh) {
+        ucname <- unique(clinic_f$UC)[t]
+        
+        instance.penta3 <- sum(clinic_f[which(clinic_f$UC == ucname),]$has_penta3)  
+        # instance of inclinic_penta3 in each UC
+        
+        ucs[which(ucs$UC == ucname),]$penta3_in_clinic <- ucs[which(ucs$UC == ucname),]$penta3_in_clinic + instance.penta3
+      }
+    }  
+  }
+  
+  # outreach
+  for(k in 1:NROW(ucs)) { 
+    ucname <- ucs$UC[k]
+    if(is.na(ucname)){
+      next
+    }
+    
+    ftable <- f[which((f$UC == ucname) & (f$has_penta3 == 1)),]
+    fpenta3<- sum(ftable$has_penta3)
+    ### in_clinic obs in this file of this tehsil
+    penta3_out <- fpenta3 - (ucs[which(ucs$UC == ucname),]$penta3_in_clinic - in_clinics[k])
+    
+    ucs[which(ucs$UC == ucname),]$penta3_out_clinic <- ucs[which(ucs$UC == ucname),]$penta3_out_clinic + penta3_out
+  }
+  
+}

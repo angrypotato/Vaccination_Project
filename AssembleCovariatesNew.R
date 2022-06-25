@@ -11,11 +11,6 @@ tehsils_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary
 tehsils <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
 tehsils@data$id <- rownames(tehsils@data)
 
-## District level ---- 
-districts_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/District_Boundary.shp")
-districts <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/District_Boundary.shp")
-districts@data$id <- rownames(districts@data)
-
 ## UC level ----
 uc_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Union_Council.shp")
 ucs <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Union_Council.shp")
@@ -23,17 +18,14 @@ ucs@data$id <- rownames(ucs@data)
 
 ## Convert to Data Frames and Clean Names ----
 tehsils <- data.frame(tehsils)
-districts <- data.frame(districts)
 ucs <- data.frame(ucs)
 
 ### Isolate Punjab Data
-districts <- districts[which(districts$PROVINCE == 'PUNJAB'),]
 tehsils <- tehsils[which(tehsils$PROVINCE == 'PUNJAB'),]
 ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),]
 
 ### Clean Geographic Field Names
 tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
-districts$DISTRICT <- sapply(districts$DISTRICT,solve_district_name)
 ucs <- solve_uc_name(ucs)
 
 ### Remove Tehsils that were Mistakenly Labelled as being in Punjab

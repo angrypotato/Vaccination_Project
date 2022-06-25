@@ -1009,7 +1009,8 @@ solve_uc_name <- function(ucs) {
   name_list <- data.frame(table(ucs$UC))
   name_duplicate <- name_list[name_list$Freq > 1, ]
   name_dup_list <- name_duplicate$Var1
-  uc_rmv_dup <- ucs[-which(ucs$UC %in% name_dup_list),] 
+  uc_rmv_dup <- ucs[-which(ucs$UC %in% name_dup_list),] %>%
+    mutate(UC = toupper(UC))
   uc_rmv_dup
 }
 
