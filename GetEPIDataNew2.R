@@ -332,7 +332,7 @@ districts$pentavalent2_vacc_per_capita <- districts$penta2 / districts$child_pop
 districts$pentavalent3_vacc_per_capita <- districts$penta3 / districts$child_population
 
 
-##########  this works
+##########  this works ----
 
 ### clear up
 in_clinics <- 0
@@ -351,7 +351,47 @@ facilities$in_clinic <- 0
 facilities$out_clinic <- 0
 
 
-### tehsil
+### tehsil ----
+
+clean_df <- function(fl){
+  file1 <- read.csv(fl)
+  file1 <- file1[,-10]
+  file1 <- file1[!duplicated(file1), ]
+  file1 <- file1 %>%
+    separate(location, into = c('lat', 'long'), sep=",")
+  file1$has_tehsil <- 1
+  file1[(file1$town_name == "" | file1$town_name == "NULL"),]$has_tehsil <- 0
+  file1 <- file1[grepl('penta',file1$Vaccination,ignore.case=TRUE),]
+  no_town <- file1[(file1$has_tehsil == 0),]
+  no_town$valid <- 1
+  no_town$valid[no_town$lat == "0.0"] <- 0
+  no_town$valid[grep("-", no_town$lat)] <- 0
+  no_town$valid[no_town$long == "0.0"] <- 0
+  no_town$valid[grep("-", no_town$long)] <- 0
+  no_town$valid[grep("\n", no_town$long)] <- 0
+  no_town$valid[grep("\n", no_town$lat)] <- 0
+  no_town <- transform(no_town, lat = as.numeric(lat),
+                       long = as.numeric(long))
+  no_town$valid[no_town$long < 60  || no_town$lat < 20 || no_town$long >90 || no_town$lat > 50] <- 0
+  use_coords <- no_town[(no_town$valid == 1),]
+  use_coords <- na.exclude(use_coords)
+  coordinates(use_coords)<- ~long +lat
+  proj4string(use_coords) <- proj4string(tehsils_shp)
+  f_pts <- over(use_coords, tehsils_shp)
+  use_tehsil <- file1[(file1$has_tehsil == 1),]
+  new_use_coords <- f_pts[,c(3,4)]
+  new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
+  new_use_tehs <- use_tehsil[,c(2,3,5,6,7)]
+  new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
+  colnames(new_use_tehs)[colnames(new_use_tehs)=="town_name"] <- "TEHSIL"
+  colnames(new_use_tehs)[colnames(new_use_tehs)=="district_name"] <- "DISTRICT"
+  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
+  colnames(new_use_tehs)[colnames(new_use_tehs) == "daily_reg_no"] <- "Vaccination"
+  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
+  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
+  new_use_coords[complete.cases(new_use_coords$TEHSIL),]
+}
+
 
 for(file in 1:length(epi_files)){
   f <- clean_df(epi_files[file])
@@ -407,9 +447,9 @@ for(file in 1:length(epi_files)){
   
 }
 
-########## this works
 
-# clean_df_uc works
+
+### uc ----
 clean_df_uc <- function(fl){
   file1 <- read.csv(fl)
   file1 <- file1[,-10]
@@ -417,7 +457,7 @@ clean_df_uc <- function(fl){
   file1 <- file1 %>%
     separate(location, into = c('lat', 'long'), sep=",")
   file1$has_uc <- 1
-  file1[(file1$uc_name == ""),]$has_uc <- 0
+  file1[which(file1$uc_name == "" | file1$uc_name == "NULL"),]$has_uc <- 0
   file1 <- file1[grepl('Pentavalent-3',file1$Vaccination,ignore.case=TRUE),]
   no_uc <- file1[(file1$has_uc == 0),]
   no_uc$valid <- 1
@@ -438,20 +478,30 @@ clean_df_uc <- function(fl){
   use_uc <- file1[(file1$has_uc == 1),]
   new_use_coords <- f_pts[,c(3,4)]
   new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
-  new_use_uc <- use_uc[,c(2,3,5,6,7)]
+  new_use_uc <- use_uc[,c(3,4,5,6,7)]
   new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
   colnames(new_use_uc)[colnames(new_use_uc)=="uc_name"] <- "UC"
+  colnames(new_use_uc)[colnames(new_use_uc)=="town_name"] <- "TEHSIL"
   colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
   colnames(new_use_uc)[colnames(new_use_uc) == "daily_reg_no"] <- "Vaccination"
   colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
   colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
-  new_use_coords[complete.cases(new_use_coords$UC),]
+  vaccs_data <- rbind(new_use_coords,new_use_uc)
+  vaccs_data[complete.cases(vaccs_data$UC),]
 }
+
+
 
 
 ### uc
 
-for(file in 1:length(epi_files)){
+epi_file2 <- list()
+for(n in 1:length(epi_files[1:42])){
+  f <- clean_df_uc(epi_files[n])
+  epi_file2[n] <- f
+  }
+
+for(file in 1:length(epi_files[-43])){
   f <- clean_df_uc(epi_files[file])
   f$Vaccination <- tolower(f$Vaccination)
   f$UC <- toupper(f$UC)
@@ -500,5 +550,5 @@ for(file in 1:length(epi_files)){
     
     ucs[which(ucs$UC == ucname),]$penta3_out_clinic <- ucs[which(ucs$UC == ucname),]$penta3_out_clinic + penta3_out
   }
-  
+  print(file)
 }
