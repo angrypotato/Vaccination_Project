@@ -495,14 +495,9 @@ clean_df_uc <- function(fl){
 
 ### uc
 
-epi_file2 <- list()
-for(n in 1:length(epi_files[1:42])){
-  f <- clean_df_uc(epi_files[n])
-  epi_file2[n] <- f
-  }
-
-for(file in 1:length(epi_files[-43])){
-  f <- clean_df_uc(epi_files[file])
+epi_files_new <- epi_files[-c(24,37,43)]
+for(file in 1:length(epi_files_new)){
+  f <- clean_df_uc(epi_files_new[file])
   f$Vaccination <- tolower(f$Vaccination)
   f$UC <- toupper(f$UC)
   
@@ -552,3 +547,10 @@ for(file in 1:length(epi_files[-43])){
   }
   print(file)
 }
+
+# results/uc_vacc.csv
+
+### merge outcome and covariates
+ucs.merge <- ucs[, c(2:4, 21,22)]  # outcome variable
+ucs_covar <- read.csv("results/ucs_covariates.csv")  # covariates
+ucs.complete <- merge(ucs_covar, ucs.merge, by = c("UC", "DISTRICT","TEHSIL"), all.x = T)  # merged complete df
