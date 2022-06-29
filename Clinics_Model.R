@@ -15,7 +15,7 @@ set.seed(42)
 ### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
 ### covariates from the Y (Clinic Vaccination Coverage)
 
-tehsils <- tehsils[,c(10:12,14:18,22:27,29,32,40)]
+tehsils <- tehsils[,c(12:24,26,28,30,32,36,37,42)]  # 19 covariates + last col the outcome
 
 ### Split Tehsil data into train and test set
 
@@ -27,19 +27,27 @@ pentaTest <-subset(tehsils, data_split == FALSE)
 ### Use Recursive Feature Elimination for Selection of Signficant Features
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
-results <- rfe(pentaTrain[,1:16], pentaTrain[,17],sizes=c(1:16), rfeControl=rfcontrol)
+results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:16), rfeControl=rfcontrol)
 
 # summarize the results
 
 print(results)
-predictors(results)
+rfe_sig <- predictors(results)   # 13
+## "child_population"   "Population"         "radio"              "mothers_age"        "poverty"            "population_density" "fertility"         
+## "distance_to_cities" "television"         "elevation"          "mobile_phone"       "electricity"        "night_lights"  
+
 
 # Use Boruta Selection as another metric to find significant feats
 
-boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(sub_out), doTrace=2)  # perform Boruta search
+library(Boruta)
+
+boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
-print(boruta_signif)  # print significant variable rankings
+print(boruta_signif)  # print significant variable rankings, 13 covariates
+## "fertility"          "elevation"          "poverty"            "night_lights"       "Population"         "child_population"   "population_density"
+## "radio"              "electricity"        "television"         "mobile_phone"       "mothers_age"        "distance_to_cities"
+
 
 ## Plot signficance of covariates in predicting Y and then determine which are listed as confirmed, 
 ## tentative or rejected.   Tentative and Confirmed Covariates will be ultimately considered significant
@@ -50,6 +58,8 @@ outreach_df <- attStats(boruta_output)
 ### Those covariates that were determined 
 ### as confirmed or tentatively significant by the Boruta Models along with those that 
 ### were deemed as signfiicant by the RFE featire selection should be those included in modeling
+
+# selected ones:
 
 ### Producing the GBM Model with these significant features
 ### Tuned Learning Rate, Tree Complexity, K-Folds Validation

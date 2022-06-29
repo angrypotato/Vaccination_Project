@@ -98,6 +98,7 @@ for(i in 1:NROW(river_pop_dfs)){
 # (NOTE THAT THIS DATA IS FROM A SOURCE (MALARIA ATLAS) THAT IS NO LONGER VIABLE - WILL NOT RUN)
 
 MDG_shp <- getShp(ISO = "PAK", admin_level = "admin0")
+# load("VaccinationStudy/Data/MDG_shp.RData")
 MDG_shp@data$id <- rownames(MDG_shp@data)
 MDG_shp.df <- fortify(MDG_shp)
 coordinates(MDG_shp.df)<- ~long +lat
@@ -139,8 +140,8 @@ for(i in 1:NROW(mal_pop_dfs)){
 # Distance to City Covariates ----
 
 ## Tehsil ----
-distance_dt <- get(load('VaccinationStudy/Data/distance_to_cities_data.Rdata'))
-dis_df <- as.data.frame(distance_dt,xy=TRUE)
+load('VaccinationStudy/Data/distance_to_cities_data.Rdata')
+dis_df <- as.data.frame(res,xy=TRUE) ##
 
 coordinates(dis_df)<- ~x +y
 proj4string(dis_df) <- proj4string(tehsils_shp)

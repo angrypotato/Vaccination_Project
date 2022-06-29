@@ -180,41 +180,6 @@ tehsils$OutreachClinicRatio <- tehsils$penta3_out /
 tehsils$TotalOutreachCoverage <- tehsils$penta3_out / tehsils$child_population
 tehsils$TotalClinicsCoverage <- tehsils$penta3_in_clinic / tehsils$child_population
 
-# Get Clinics and Outreach Penta Vaccination data for each Punjab District
-
-districts$penta1_out_clinic <- 0
-districts$penta3_out_clinic <- 0
-districts$penta1_in_clinic <- 0
-districts$penta3_in_clinic <- 0
-
-for(i in 1:NROW(tehsils)){
-  districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta1_out_clinic <-
-    districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta1_out_clinic +
-    tehsils$penta1_out_clinic[i]
-  districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta3_out_clinic <-
-    districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta3_out_clinic +
-    tehsils$penta3_out_clinic[i]
-  districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta1_in_clinic <-
-    districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta1_in_clinic +
-    tehsils$penta1_in_clinic[i]
-  districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta1_in_clinic <-
-    districts[which(tehsils$DISTRICT[i] == district$DISTRICT),]$penta1_in_clinic +
-    tehsils$penta3_in_clinic[i]
-}
-
-# Calculate Clinic to Outreach Penta3 Vacc Ratio for Districts
-
-districts$OutreachClinicRatio <- districts$penta3_out /
-  districts$penta3_in_clinic
-
-# Calculate Total Clinic and Outreach Vacc Coverages for Districts
-
-districts$TotalOutreachCoverage <- districts$penta3_out / districts$child_population
-districts$TotalClinicsCoverage <- districts$penta3_in_clinic / districts$child_population
-
-districts$penta1_ratio <-districts$penta1_in_clinic/(districts$penta1_out_clinic + districts$penta1_in_clinic)
-districts$penta3_ratio <-districts$penta3_in_clinic/(districts$penta3_out_clinic + districts$penta3_in_clinic)
-
 
 
 
@@ -550,7 +515,22 @@ for(file in 1:length(epi_files_new)){
 
 # results/uc_vacc.csv
 
-### merge outcome and covariates
-ucs.merge <- ucs[, c(2:4, 21,22)]  # outcome variable
+
+
+####### merge outcome and covariates
+ucs_outcome <- read.csv("results/ucs_vacc.csv")[,c(3:5,22,23)] # outcome variable
 ucs_covar <- read.csv("results/ucs_covariates.csv")  # covariates
-ucs.complete <- merge(ucs_covar, ucs.merge, by = c("UC", "DISTRICT","TEHSIL"), all.x = T)  # merged complete df
+ucs_complete <- merge(ucs_covar, ucs_outcome, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
+  mutate(OutreachClinicRatio = penta3_out_clinic / penta3_in_clinic,
+         TotalOutreachCoverage = penta3_out_clinic / child_population,  
+         TotalClinicsCoverage = penta3_in_clinic / child_population)
+# write.csv(ucs_complete, "results/ucs_complete.csv")
+
+tehsils_covar <- read.csv("results/tehsils_covar.csv")
+tehsils_outcome <- read.csv("results/tehsils_vacc.csv")[, c(4,5,12,14)] 
+tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("DISTRICT","TEHSIL"), all.x = T) %>%
+  mutate(OutreachClinicRatio = penta3_out_clinic / penta3_in_clinic,
+         TotalOutreachCoverage = penta3_out_clinic / child_population,
+         TotalClinicsCoverage = penta3_in_clinic / child_population)
+# write.csv(tehsils_complete, "results/tehsils_complete.csv")
+
