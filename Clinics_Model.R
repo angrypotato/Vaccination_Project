@@ -5,49 +5,53 @@
 # 2.  Develop Models Using Such Covariates in Order to Predict this In Clinic 
 # Pentavalent Vaccination Rate - Feature selection using RFE, Boruta.  Predictive Modeling using GBM, Lasso and GAM.  
 
+source(file='PreRunNew.r')
 
-source(file='VaccinationStudy/PreRun.r')
 
-### Split Data
 
-set.seed(42)
+# For Tehsil ----
 
 ### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
 ### covariates from the Y (Clinic Vaccination Coverage)
 
-tehsils <- tehsils[,c(12:24,26,28,30,32,36,37,42)]  # 19 covariates + last col the outcome
+# tehsils <- read.csv("results/tehsils_complete.csv")
+tehsils <- tehsils[,c(13:25,27,29,31,33,37,38,43)] %>%   # 19 features + last col the outcome
+  scale() %>%
+  as.data.frame()
 
 ### Split Tehsil data into train and test set
+
+set.seed(42)
 
 data_split = sample.split(tehsils, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils, data_split == TRUE)
 pentaTest <-subset(tehsils, data_split == FALSE)
 
-### RFE Feature Selection
+
+## Feature selection ---- 
+
+### RFE Feature Selection ---- 
 ### Use Recursive Feature Elimination for Selection of Signficant Features
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
-results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:16), rfeControl=rfcontrol)
+results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfcontrol)
 
 # summarize the results
 
 print(results)
-rfe_sig <- predictors(results)   # 13
-## "child_population"   "Population"         "radio"              "mothers_age"        "poverty"            "population_density" "fertility"         
-## "distance_to_cities" "television"         "elevation"          "mobile_phone"       "electricity"        "night_lights"  
+rfe_sig <- predictors(results)  
 
 
-# Use Boruta Selection as another metric to find significant feats
+### Boruta ----
+
+## Use Boruta Selection as another metric to find significant feats
 
 library(Boruta)
 
 boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
-print(boruta_signif)  # print significant variable rankings, 13 covariates
-## "fertility"          "elevation"          "poverty"            "night_lights"       "Population"         "child_population"   "population_density"
-## "radio"              "electricity"        "television"         "mobile_phone"       "mothers_age"        "distance_to_cities"
-
+print(boruta_signif)  # print significant variable rankings
 
 ## Plot signficance of covariates in predicting Y and then determine which are listed as confirmed, 
 ## tentative or rejected.   Tentative and Confirmed Covariates will be ultimately considered significant
@@ -55,19 +59,22 @@ print(boruta_signif)  # print significant variable rankings, 13 covariates
 plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xlab="Covariate", main="Variable Importance")  # plot variable importance
 outreach_df <- attStats(boruta_output)
 
+
+## Build Models ----
+
 ### Those covariates that were determined 
 ### as confirmed or tentatively significant by the Boruta Models along with those that 
 ### were deemed as signfiicant by the RFE featire selection should be those included in modeling
 
-# selected ones:
 
+### GBM ----
 ### Producing the GBM Model with these significant features
 ### Tuned Learning Rate, Tree Complexity, K-Folds Validation
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = 1:7,
-  gbm.y = 8,
+  gbm.x = c(1:4, 7:13, 16, 19),   # selected features
+  gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
   learning.rate = 0.005,
@@ -76,16 +83,19 @@ ratio.step <- gbm.step(
 )
 
 gbm_pred = predict(ratio.step,pentaTest,1000)
-gbm_rmse <- rmse(pentaTest[,8],gbm_pred)
-gbm_rsquared <- R2(pentaTest[,8],gbm_pred)
-gbm_mae <- mae(pentaTest[,8],gbm_pred)
+gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
+gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
+gbm_mae <- mae(pentaTest[,20],gbm_pred)
 
-### What features did the GBM model identify as significant in predicting our Y (Outreach/Clinic Vacc ratio)?
+### What features did the GBM model identify as significant in predicting our Y?
 
 gbm_cfs <- summary(ratio.step)
 gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
 names(gbm_cfs) <- c("Feature","Rel.Influence")
 xtable(data.frame(gbm_cfs))
+
+
+### GAM ----
 
 # Attain Evaluation Metrics for performance of model using covariates selected
 
@@ -95,55 +105,71 @@ control <- trainControl(method="repeatedcv", number=10, repeats=3,search="grid")
 
 ### Producing the GAM Model - tune with K-Folds Validation,Grid Search
 
-ratio_gam_model <-train(TotalClinicsCoverage~., data = pentaTrain, method="gam", trControl=control, tuneLength=5)
+ratio_gam_model <-train(TotalClinicsCoverage ~ .,
+                        data = as.data.frame(pentaTrain[,c(1,7:13, 16, 19,20)]),   
+                        method="gam", trControl=control, crtuneLength=5)
 ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
 
 ### Evaluate Performances of GAM Model using RMSE,R2,MAE
 
-ratio_gam_RMSE <- rmse(pentaTest[,13],ratio_gam_preds)
-ratio_gam_R2 <- R2(pentaTest[,13],ratio_gam_preds)
-ratio_gam_MAE <- MAE(pentaTest[,13],ratio_gam_preds)
+ratio_gam_RMSE <- rmse(pentaTest[,20],ratio_gam_preds)
+ratio_gam_R2 <- R2(pentaTest[,20],ratio_gam_preds)
+ratio_gam_MAE <- MAE(pentaTest[,20],ratio_gam_preds)
 ratio_gam_summary <- summary(ratio_gam_model$finalModel)
 ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
 xtable(data.frame(ratio_gam_cfs))
 
+
+### LASSO ----
+
 ### Producing the Lasso Model
 
-ratio_lasso_model <- train(TotalClinicsCoverage~., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
+ratio_lasso_model <- train(TotalClinicsCoverage~fertility+poverty+Population+child_population+population_density+radio+mothers_age+distance_to_cities, 
+                           data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
-ratio_lasso_RMSE <- rmse(pentaTest[,17],ratio_lasso_preds)
-ratio_lasso_R2 <- R2(pentaTest[,17],ratio_lasso_preds)
-ratio_lasso_MAE <- MAE(pentaTest[,17],ratio_lasso_preds)
+ratio_lasso_RMSE <- rmse(pentaTest[,20],ratio_lasso_preds)
+ratio_lasso_R2 <- R2(pentaTest[,20],ratio_lasso_preds)
+ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
 
 # Try different Coefficients of Lasso Model and Check which coefficients produce best results
 
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
-winnermodelscoeffs <- models[4,] # Find the best model
+# ratio_lasso_model$finalModel$Cp 
+winnermodelscoeffs <- models[7,] # the best model (smallest Cp)
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
 
-### FOR DISTRICTS
+
+
+
+# FOR UC ----
+
+# ucs <- read.csv("results/ucs_complete.csv")
+ucs <- ucs[, c(25:31,36)] %>%  # 7 features + last col outcome
+  na.omit()
 
 set.seed(42)
-data_split = sample.split(districts, SplitRatio = 0.8)
-pentaTrain <- subset(districts, data_split == TRUE)
-pentaTest <-subset(districts, data_split == FALSE)
+data_split = sample.split(ucs, SplitRatio = 0.8)
+pentaTrain <- subset(ucs, data_split == TRUE)
+pentaTest <-subset(ucs, data_split == FALSE)
 
 
-### RFE Feature Selection
+## Feature selection ----
+
+### RFE Feature Selection ----
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
-results <- rfe(pentaTrain[,1:16], pentaTrain[,17],sizes=c(1:16), rfeControl=rfcontrol)
+results <- rfe(pentaTrain[,1:7], pentaTrain[,8],sizes=c(1:7), rfeControl=rfcontrol)
 
 # summarize the results
 
 print(results)
 predictors(results)
 
-# Boruta Selection
+### Boruta Selection ----
 
-boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(sub_out), doTrace=2)  # perform Boruta search
+boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
 print(boruta_signif)  # significant variables
@@ -151,50 +177,18 @@ print(boruta_signif)  # significant variables
 plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xlab="Covariate", main="Variable Importance")  # plot variable importance
 outreach_df <- attStats(boruta_output)
 
-### Producing the GBM Model
 
-ratio.step <- gbm.step(
-  data=pentaTrain, 
-  gbm.x = 1:7,
-  gbm.y = 8,
-  family = "gaussian",
-  tree.complexity = 2,
-  learning.rate = 0.005,
-  bag.fraction = 0.5,
-  cv_folds = 10,
-)
-
-gbm_pred = predict(ratio.step,pentaTest,1000)
-gbm_rmse <- rmse(pentaTest[,8],gbm_pred)
-gbm_rsquared <- R2(pentaTest[,8],gbm_pred)
-gbm_mae <- mae(pentaTest[,8],gbm_pred)
-
-gbm_cfs <- summary(ratio.step)
-gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
-names(gbm_cfs) <- c("Feature","Rel.Influence")
-xtable(data.frame(gbm_cfs))
-
-### Producing the GAM Model
-
-ratio_gam_model <-train(TotalClinicsCoverage~., data = pentaTrain, method="gam", trControl=control, tuneLength=5)
-ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
-ratio_gam_RMSE <- rmse(pentaTest[,13],ratio_gam_preds)
-ratio_gam_R2 <- R2(pentaTest[,13],ratio_gam_preds)
-ratio_gam_MAE <- MAE(pentaTest[,13],ratio_gam_preds)
-ratio_gam_summary <- summary(ratio_gam_model$finalModel)
-ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
-xtable(data.frame(ratio_gam_cfs))
-
-### Producing the Lasso Model
+## Lasso Model ----
 
 ratio_lasso_model <- train(TotalClinicsCoverage~., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
-ratio_lasso_RMSE <- rmse(pentaTest[,17],ratio_lasso_preds)
-ratio_lasso_R2 <- R2(pentaTest[,17],ratio_lasso_preds)
-ratio_lasso_MAE <- MAE(pentaTest[,17],ratio_lasso_preds)
+ratio_lasso_RMSE <- rmse(pentaTest[,8],ratio_lasso_preds)
+ratio_lasso_R2 <- R2(pentaTest[,8],ratio_lasso_preds)
+ratio_lasso_MAE <- MAE(pentaTest[,8],ratio_lasso_preds)
 
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
+# ratio_lasso_model$finalModel$Cp
 winnermodelscoeffs <- models[4,] # Find the best model
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
