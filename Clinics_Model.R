@@ -101,13 +101,17 @@ xtable(data.frame(gbm_cfs))
 
 # Define Params for Cross Validation and Grid Search - will be used in modeling
 
-control <- trainControl(method="repeatedcv", number=10, repeats=3,search="grid")
+control <- trainControl(method="repeatedcv", 
+                        number=10,   # k for k-fold CV
+                        repeats=3,   
+                        search="grid")   # grid search CV
 
 ### Producing the GAM Model - tune with K-Folds Validation,Grid Search
 
 ratio_gam_model <-train(TotalClinicsCoverage ~ .,
-                        data = as.data.frame(pentaTrain[,c(1,7:13, 16, 19,20)]),   
-                        method="gam", trControl=control, crtuneLength=5)
+                        data = as.data.frame(pentaTrain[,c( 7:13,  19, 20)]),   
+                        method="gam", trControl=control, 
+                        crtuneLength=5)   # try this # dif values of tuning parameters 
 ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
 
 ### Evaluate Performances of GAM Model using RMSE,R2,MAE
@@ -118,6 +122,11 @@ ratio_gam_MAE <- MAE(pentaTest[,20],ratio_gam_preds)
 ratio_gam_summary <- summary(ratio_gam_model$finalModel)
 ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
 xtable(data.frame(ratio_gam_cfs))
+
+
+## other methods
+
+gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19)]), data.matrix(pentaTrain[,20]))
 
 
 ### LASSO ----
