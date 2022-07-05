@@ -521,7 +521,7 @@ for(file in 1:length(epi_files_new)){
 ucs_outcome <- read.csv("results/ucs_vacc.csv")[,c(3:5,22,23)] # outcome variable
 ucs_covar <- read.csv("results/ucs_covariates.csv")  # covariates
 ucs_complete <- merge(ucs_covar, ucs_outcome, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
-  mutate(OutreachClinicRatio = penta3_out_clinic / penta3_in_clinic,
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,  
          TotalClinicsCoverage = penta3_in_clinic / child_population)
 # write.csv(ucs_complete, "results/ucs_complete.csv")
@@ -529,7 +529,7 @@ ucs_complete <- merge(ucs_covar, ucs_outcome, by = c("UC", "DISTRICT","TEHSIL"),
 tehsils_covar <- read.csv("results/tehsils_covar.csv")
 tehsils_outcome <- read.csv("results/tehsils_vacc.csv")[, c(4,5,12,14)] 
 tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("DISTRICT","TEHSIL"), all.x = T) %>%
-  mutate(OutreachClinicRatio = penta3_out_clinic / penta3_in_clinic,
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,
          TotalClinicsCoverage = penta3_in_clinic / child_population)
 # write.csv(tehsils_complete, "results/tehsils_complete.csv")

@@ -10,6 +10,9 @@
 
 source(file='VaccinationStudy/PreRun.r')
 
+
+# For Tehsil ----
+
 ### Split Data
 
 set.seed(42)
@@ -25,7 +28,10 @@ data_split = sample.split(tehsils, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils, data_split == TRUE)
 pentaTest <-subset(tehsils, data_split == FALSE)
 
-### Use Recursive Feature Elimination for Selection of Signficant Features
+
+## Feature Selection ----
+
+### RFE ----
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
 results <- rfe(pentaTrain[,1:16], pentaTrain[,17],sizes=c(1:16), rfeControl=rfcontrol)
@@ -35,7 +41,7 @@ results <- rfe(pentaTrain[,1:16], pentaTrain[,17],sizes=c(1:16), rfeControl=rfco
 print(results)
 predictors(results)
 
-# Use Boruta Selection as another metric to find significant feats
+### Boruta ----
 
 boruta_output <- Boruta(OutreachClinicRatio ~ ., data=na.omit(sub_out), doTrace=2)  # perform Boruta search
 
@@ -50,6 +56,8 @@ outreach_df <- attStats(boruta_output)
 ### Those covariates that were determined 
 ### as confirmed or tentatively significant by the Boruta Models along with those that 
 ### were deemed as signfiicant by the RFE featire selection should be those included in modeling
+
+## GBM ----
 
 ### Producing the GBM Model with these significant features
 ### Tuned Learning Rate, Tree Complexity, K-Folds Validation
@@ -80,6 +88,10 @@ gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
 names(gbm_cfs) <- c("Feature","Rel.Influence")
 xtable(data.frame(gbm_cfs))
 
+
+
+## GAM ----
+
 # Attain Evaluation Metrics for performance of model using covariates selected
 
 # Define Params for Cross Validation and Grid Search - will be used in modeling
@@ -100,7 +112,8 @@ ratio_gam_summary <- summary(ratio_gam_model$finalModel)
 ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
 xtable(data.frame(ratio_gam_cfs))
 
-### Producing the Lasso Model
+
+## Lasso Model ----
 
 ratio_lasso_model <- train(OutreachClinicRatio~., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
@@ -116,15 +129,18 @@ winnermodelscoeffs <- models[4,] # Find the best model
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
 
-### FOR DISTRICTS
+
+
+# FOR UC ----
 
 set.seed(42)
 data_split = sample.split(districts, SplitRatio = 0.8)
 pentaTrain <- subset(districts, data_split == TRUE)
 pentaTest <-subset(districts, data_split == FALSE)
 
+## Feature Selection ----
 
-### RFE Feature Selection
+### RFE Feature Selection ----
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
 results <- rfe(pentaTrain[,1:16], pentaTrain[,17],sizes=c(1:16), rfeControl=rfcontrol)
@@ -134,7 +150,7 @@ results <- rfe(pentaTrain[,1:16], pentaTrain[,17],sizes=c(1:16), rfeControl=rfco
 print(results)
 predictors(results)
 
-# Boruta Selection
+### Boruta Selection ----
 
 boruta_output <- Boruta(OutreachClinicRatio ~ ., data=na.omit(sub_out), doTrace=2)  # perform Boruta search
 
@@ -144,41 +160,8 @@ print(boruta_signif)  # significant variables
 plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xlab="Covariate", main="Variable Importance")  # plot variable importance
 outreach_df <- attStats(boruta_output)
 
-### Producing the GBM Model
 
-ratio.step <- gbm.step(
-  data=pentaTrain, 
-  gbm.x = 1:7,
-  gbm.y = 8,
-  family = "gaussian",
-  tree.complexity = 2,
-  learning.rate = 0.005,
-  bag.fraction = 0.5,
-  cv_folds = 10,
-)
-
-gbm_pred = predict(ratio.step,pentaTest,1000)
-gbm_rmse <- rmse(pentaTest[,8],gbm_pred)
-gbm_rsquared <- R2(pentaTest[,8],gbm_pred)
-gbm_mae <- mae(pentaTest[,8],gbm_pred)
-
-gbm_cfs <- summary(ratio.step)
-gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
-names(gbm_cfs) <- c("Feature","Rel.Influence")
-xtable(data.frame(gbm_cfs))
-
-### Producing /Testing the GAM Model
-
-ratio_gam_model <-train(OutreachClinicRatio~., data = pentaTrain, method="gam", trControl=control, tuneLength=5)
-ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
-ratio_gam_RMSE <- rmse(pentaTest[,13],ratio_gam_preds)
-ratio_gam_R2 <- R2(pentaTest[,13],ratio_gam_preds)
-ratio_gam_MAE <- MAE(pentaTest[,13],ratio_gam_preds)
-ratio_gam_summary <- summary(ratio_gam_model$finalModel)
-ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
-xtable(data.frame(ratio_gam_cfs))
-
-### Producing /Testing the Lasso Model
+## Producing /Testing the Lasso Model ----
 
 ratio_lasso_model <- train(OutreachClinicRatio~., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)

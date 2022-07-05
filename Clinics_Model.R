@@ -21,7 +21,7 @@ tehsils <- tehsils[,c(13:25,27,29,31,33,37,38,43)] %>%   # 19 features + last co
 
 ### Split Tehsil data into train and test set
 
-set.seed(42)
+set.seed(1)
 
 data_split = sample.split(tehsils, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils, data_split == TRUE)
@@ -73,7 +73,7 @@ outreach_df <- attStats(boruta_output)
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(1:4, 7:13, 16, 19),   # selected features
+  gbm.x = c(1,2,4,7:13, 16, 18, 19),   # selected features
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
@@ -104,7 +104,7 @@ xtable(data.frame(gbm_cfs))
 control <- trainControl(method="repeatedcv", 
                         number=10,   # k for k-fold CV
                         repeats=3,   
-                        search="grid")   # grid search CV
+                        search="grid")   # grid search CV (only tuning method, chose GCV.Cp)
 
 ### Producing the GAM Model - tune with K-Folds Validation,Grid Search
 
@@ -124,9 +124,34 @@ ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
 xtable(data.frame(ratio_gam_cfs))
 
 
-## other methods
 
-gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19)]), data.matrix(pentaTrain[,20]))
+
+#### other methods ----
+library(mgcv)
+gam.mod <- gam(TotalClinicsCoverage ~ s(fertility) + s(elevation) + s(night_lights) + 
+                 s(Population) + s(child_population) + s(population_density) + 
+                 s(radio) + s(electricity) + s(television) + s(mobile_phone) + s(mothers_age) +
+                 s(urban_to_rural) + s(distance_to_cities),
+               data = pentaTrain, method = "REML")   # worse performance than ratio_gam_model$finalModel
+# check k: gam.check()
+
+# Error: Model has more coefficients than data 
+
+## check wiggliness
+df_chosen <- pentaTrain[,c(1,2,4,7:13, 16, 18, 19, 20)]
+par(mfrow=c(5,3))
+for (n in 1:(length(df_chosen)-1)) {
+  plot(df_chosen[,n], df_chosen[,14])
+  curve_values <- loess(df_chosen[,14] ~ df_chosen[,n])
+  lines(predict(curve_values), x = df_chosen[,n], col = "red",lwd = 1)
+}
+par(mfrow=c(1,1))
+
+
+library(gamreg)
+gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19, 20)]), data.matrix(pentaTrain[,20]))
+
+
 
 
 ### LASSO ----
