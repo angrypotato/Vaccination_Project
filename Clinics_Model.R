@@ -15,7 +15,7 @@ source(file='PreRunNew.r')
 ### covariates from the Y (Clinic Vaccination Coverage)
 
 # tehsils <- read.csv("results/tehsils_complete.csv")
-tehsils <- tehsils[,c(13:25,27,29,31,33,37,38,43)] %>%   # 19 features + last col the outcome
+tehsils <- tehsils[,c(14:26,28,30,32,34,38,39,44)] %>%   # 19 features + last col the outcome
   scale() %>%
   as.data.frame()
 
@@ -133,6 +133,15 @@ gam.mod <- gam(TotalClinicsCoverage ~ s(fertility) + s(elevation) + s(night_ligh
                  s(radio) + s(electricity) + s(television) + s(mobile_phone) + s(mothers_age) +
                  s(urban_to_rural) + s(distance_to_cities),
                data = pentaTrain, method = "REML")   # worse performance than ratio_gam_model$finalModel
+
+gam.mod <- gam(TotalClinicsCoverage ~ s(fertility, k=100) + s(elevation, k=100) + s(night_lights, k=100) + 
+                 s(Population, k=100) + s(child_population, k=100) + s(population_density, k=100) + 
+                 s(radio, k=100) + s(electricity, k=100) + s(television, k=100) + s(mobile_phone, k=100) + s(mothers_age, k=100) +
+                 s(urban_to_rural, k=100) + s(distance_to_cities, k=100),
+               data = pentaTrain, method = "REML")  
+## Error in smooth.construct.tp.smooth.spec(object, dk$data, dk$knots) : 
+## A term has fewer unique covariate combinations than specified maximum degrees of freedom
+
 # check k: gam.check()
 
 # Error: Model has more coefficients than data 
