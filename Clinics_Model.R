@@ -128,19 +128,20 @@ xtable(data.frame(ratio_gam_cfs))
 
 #### other methods ----
 library(mgcv)
-gam.mod <- gam(TotalClinicsCoverage ~ s(fertility) + s(elevation) + s(night_lights) + 
-                 s(Population) + s(child_population) + s(population_density) + 
-                 s(radio) + s(electricity) + s(television) + s(mobile_phone) + s(mothers_age) +
-                 s(urban_to_rural) + s(distance_to_cities),
-               data = pentaTrain, method = "REML")   # worse performance than ratio_gam_model$finalModel
 
-gam.mod <- gam(TotalClinicsCoverage ~ s(fertility, k=100) + s(elevation, k=100) + s(night_lights, k=100) + 
-                 s(Population, k=100) + s(child_population, k=100) + s(population_density, k=100) + 
-                 s(radio, k=100) + s(electricity, k=100) + s(television, k=100) + s(mobile_phone, k=100) + s(mothers_age, k=100) +
-                 s(urban_to_rural, k=100) + s(distance_to_cities, k=100),
-               data = pentaTrain, method = "REML")  
-## Error in smooth.construct.tp.smooth.spec(object, dk$data, dk$knots) : 
-## A term has fewer unique covariate combinations than specified maximum degrees of freedom
+gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(night_lights, k=5) + 
+                         s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) + 
+                         s(radio, k=5) + s(electricity, k=5) + s(television, k=5) + s(mobile_phone, k=5) + s(mothers_age, k=5) +
+                         s(urban_to_rural, k=5) + s(distance_to_cities, k=5) +
+                         te(population_density, fertility, k = 5) + 
+                         te(distance_to_cities, fertility, k = 5))
+
+gam.mod <- gam(gam.form, data = pentaTrain, method = "GCV.Cp")  
+
+ratio_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
+xtable(data.frame(ratio_gam_cfs))
+### works
+
 
 # check k: gam.check()
 
@@ -192,7 +193,7 @@ xtable(data.frame(t(ratio_lasso_cfs)))
 ucs <- ucs[, c(25:31,36)] %>%  # 7 features + last col outcome
   na.omit()
 
-set.seed(42)
+set.seed(1)
 data_split = sample.split(ucs, SplitRatio = 0.8)
 pentaTrain <- subset(ucs, data_split == TRUE)
 pentaTest <-subset(ucs, data_split == FALSE)
@@ -232,7 +233,7 @@ ratio_lasso_MAE <- MAE(pentaTest[,8],ratio_lasso_preds)
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
 # ratio_lasso_model$finalModel$Cp
-winnermodelscoeffs <- models[4,] # Find the best model
+winnermodelscoeffs <- models[6,] # Find the best model (smallest Cp)
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
 
