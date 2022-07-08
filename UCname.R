@@ -87,3 +87,48 @@ ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertili
 ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation")
 ucs <- get_geovars_uc("VaccinationStudy/Data/pak07povmpi.tif","poverty")
 ucs <- get_geovars_uc("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights")
+
+
+
+
+##### recruit duplicate obs.
+
+uc_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Union_Council.shp")
+ucs <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Union_Council.shp")
+ucs@data$id <- rownames(ucs@data)
+ucs <- data.frame(ucs)
+ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),] %>%
+  mutate(UC = toupper(UC))
+
+
+uc_dup <- data.frame(table(ucs$UC)) %>%
+  filter(Freq > 1)
+uc_dup_name <- uc_dup[[,1]]
+
+
+ucs <- ucs[!duplicated(ucs$UC),]   ###
+
+ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility")
+ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation")
+ucs <- get_geovars_uc("VaccinationStudy/Data/pak07povmpi.tif","poverty")
+
+
+
+
+solve_uc_name <- function(ucs) {
+  name_list <- data.frame(table(ucs$UC))
+  name_duplicate <- name_list[name_list$Freq > 1, ]
+  name_dup_list <- name_duplicate$Var1
+  
+  ucs$mark <- 1
+  
+  for (n in 1:nrow(ucs)) {
+    obs_name <- ucs$UC[n]
+    if (obs_name %in% name_dup_list) {
+      
+    }
+  }
+  
+  
+  ucs_out
+}

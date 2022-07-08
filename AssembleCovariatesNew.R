@@ -22,11 +22,12 @@ ucs <- data.frame(ucs)
 
 ### Isolate Punjab Data
 tehsils <- tehsils[which(tehsils$PROVINCE == 'PUNJAB'),]
-ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),]
+ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),] %>%
+  mutate(UC = toupper(UC))
 
 ### Clean Geographic Field Names
 tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
-ucs <- solve_uc_name(ucs)
+ucs <- ucs[!duplicated(ucs$UC),]
 
 ### Remove Tehsils that were Mistakenly Labelled as being in Punjab
 tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK','FAISALABAD SADDAR')),]
@@ -38,20 +39,15 @@ tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEH
  # Join Fertility, Elevation, Poverty and Night Lights Covariates ----
 
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",1)
-districts <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",2)
 ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility")
 
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation",1)
-districts <- get_geovars("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation",2)
 ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation")
 
 tehsils <- get_geovars("VaccinationStudy/Data/pak07povmpi.tif","poverty",1)
-districts <- get_geovars("VaccinationStudy/Data/pak07povmpi.tif","poverty",2)
 ucs <- get_geovars_uc("VaccinationStudy/Data/pak07povmpi.tif","poverty")
 
 tehsils <- get_geovars("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights",1)
-districts <- get_geovars("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights",2)
-ucs <- get_geovars_uc("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights")
 
 
 # Distance to Lakes/Rivers Covariate ----
@@ -325,8 +321,7 @@ for(i in 1:NROW(pop_df)){
 
 
 ## UC ----
-
-coordinates(child_population)<- ~longitude +latitude
+ 
 proj4string(child_population) <- proj4string(uc_shp)
 
 pts <- over(child_population, uc_shp)
@@ -369,4 +364,4 @@ districts$population_density <- districts$Population / districts$Shape_Area
 ucs$population_density <- ucs$Population / ucs$Shape_Area
 
 
-write.csv(ucs, "D:\\Xiaoting\\Vaccination_Project\\results\\ucs_covariates.csv")
+write.csv(ucs, "D:\\Xiaoting\\Vaccination_Project\\results\\ucs_covariates_7.8.csv")
