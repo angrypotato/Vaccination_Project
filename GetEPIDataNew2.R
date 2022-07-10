@@ -484,8 +484,8 @@ for(file in 1:length(epi_files_new)){
     num_clinic <- NROW(clinic_f)
     if (num_clinic >0) {
      
-      num_teh <- length(unique(clinic_f$UC))   # for different ucs in the clinic range
-      for (t in 1:num_teh) {
+      num_uc <- length(unique(clinic_f$UC))   # for different ucs in the clinic range
+      for (t in 1:num_uc) {
         ucname <- unique(clinic_f$UC)[t]
         
         instance.penta3 <- sum(clinic_f[which(clinic_f$UC == ucname),]$has_penta3)  
@@ -513,7 +513,7 @@ for(file in 1:length(epi_files_new)){
   print(file)
 }
 
-# results/uc_vacc.csv
+ # results/uc_vacc.csv
 
 
 

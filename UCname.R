@@ -132,3 +132,19 @@ solve_uc_name <- function(ucs) {
   
   ucs_out
 }
+
+### new uc_covar
+test1 <- merge(uc_covar, uc_vacc, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
+       mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
+                           TotalOutreachCoverage = penta3_out_clinic / child_population,  
+                           TotalClinicsCoverage = penta3_in_clinic / child_population) %>%
+  filter(!(is.na(penta3_in_clinic) & is.na(penta3_out_clinic) & is.na(OutreachProportion)))  ### got 2541
+
+
+### old uc_covar
+test2 <- merge(uc_covar_old, uc_vacc, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
+         TotalOutreachCoverage = penta3_out_clinic / child_population,  
+         TotalClinicsCoverage = penta3_in_clinic / child_population) %>%
+  filter(!(is.na(penta3_in_clinic) & is.na(penta3_out_clinic) & is.na(OutreachProportion)))  ### got 2541
+
