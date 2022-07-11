@@ -134,6 +134,7 @@ solve_uc_name <- function(ucs) {
 }
 
 ### new uc_covar
+uc_covar <- read.csv("results/ucs_covariates_7.8.csv")
 test1 <- merge(uc_covar, uc_vacc, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
        mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
                            TotalOutreachCoverage = penta3_out_clinic / child_population,  
@@ -148,3 +149,18 @@ test2 <- merge(uc_covar_old, uc_vacc, by = c("UC", "DISTRICT","TEHSIL"), all.x =
          TotalClinicsCoverage = penta3_in_clinic / child_population) %>%
   filter(!(is.na(penta3_in_clinic) & is.na(penta3_out_clinic) & is.na(OutreachProportion)))  ### got 2541
 
+
+### new uc_vacc
+### nw uc_covar
+uc_vacc <- read.csv("results/ucs_vacc_new.csv")
+test3 <- merge(uc_covar, uc_vacc, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
+         TotalOutreachCoverage = penta3_out_clinic / child_population,  
+         TotalClinicsCoverage = penta3_in_clinic / child_population) %>%
+  filter(!(is.na(penta3_in_clinic) & is.na(penta3_out_clinic) & is.na(OutreachProportion)))  ### got 3154
+
+test3_na <- test3[is.nan(test3$OutreachProportion),]   ### got 19
+
+test4 <- test3[!is.nan(test3$OutreachProportion),]
+
+write.csv(test4, "results/uc_complete_test.csv")
