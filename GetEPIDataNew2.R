@@ -292,9 +292,7 @@ tehsils$pentavalent1_vacc_per_capita <- tehsils$penta1 / tehsils$child_populatio
 tehsils$pentavalent2_vacc_per_capita <- tehsils$penta2 / tehsils$child_population
 tehsils$pentavalent3_vacc_per_capita <- tehsils$penta3 / tehsils$child_population
 
-districts$pentavalent1_vacc_per_capita <- districts$penta1 / districts$child_population
-districts$pentavalent2_vacc_per_capita <- districts$penta2 / districts$child_population
-districts$pentavalent3_vacc_per_capita <- districts$penta3 / districts$child_population
+
 
 
 ##########  this works ----
@@ -415,6 +413,14 @@ for(file in 1:length(epi_files)){
 
 
 ### uc ----
+
+uc_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Union_Council.shp")
+ucs <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Union_Council.shp")
+ucs@data$id <- rownames(ucs@data)
+ucs <- data.frame(ucs)
+ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),] %>%
+  mutate(UC = toupper(UC))
+
 clean_df_uc <- function(fl){
   file1 <- read.csv(fl)
   file1 <- file1[,-10]
@@ -456,9 +462,6 @@ clean_df_uc <- function(fl){
 }
 
 
-
-
-### uc
 
 epi_files_new <- epi_files[-c(24,37,43)]
 for(file in 1:length(epi_files_new)){
@@ -532,5 +535,6 @@ tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("DISTRICT","TEH
   mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,
          TotalClinicsCoverage = penta3_in_clinic / child_population)
-# write.csv(tehsils_complete, "results/tehsils_complete.csv")
+tehsils_complete_data <- tehsils_complete[,c(6,2,1,12:21,24,27,30,33,39,42,45,48,51,57,67,70:72)]
+# write.csv(tehsils_complete_data, "results/tehsils_complete_new.csv")
 

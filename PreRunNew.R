@@ -54,7 +54,7 @@ get_geovars <- function(f,attr,res){
     binded_df <- data.frame(binded_df %>% group_by(Tehsil) %>% summarise_each(funs(nz_mean)))
     tehsils$attr <- 0
     tehsils$Tehsil <- tehsils$TEHSIL
-    merged <- merge(tehsils, binded_df, by='Tehsil')
+    merged <- merge(tehsils, binded_df, by='Tehsil', all.x = T)
   }
   else{
     binded_df <- data.frame(binded_df[complete.cases(binded_df),] %>% group_by(District) %>% summarise_each(funs(nz_mean)))

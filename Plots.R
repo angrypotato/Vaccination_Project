@@ -4,12 +4,11 @@ library(corrplot)
 
 ## Tehsil level ----
 
-tehsils <- read.csv("results/tehsils_complete.csv")
+tehsils <- read.csv("results/tehsils_complete_new.csv")
 
-tehsils.plot <- tehsils[,c(14:26,28,30,32,34,38,39, 42:44)] %>%   # 19 covariates + 3 outcome variables
+tehsils.plot <- tehsils[-c(29,69,104,116),-c(1:4,20)] %>%  
   as.data.frame() %>%
-  dplyr::select(c(20,22,21,1,7:9,19,18,3,5,6,2,15,14,11,12,17,13,10,4,16)) %>%
-  na.omit()
+  dplyr::select(c(21,23,22,1,8:10,7,20,3,5,2,16,15,12,13,19,14,11,17))   ### 132 obs.
 
 tehsils.cor <- cor(tehsils.plot, method = c("spearman"))
 
@@ -24,12 +23,12 @@ cor(tehsils$poverty, tehsils$OutreachProportion, method = "spearman", use = "com
 
 ## UC level ----
 
-ucs <- read.csv("results/ucs_complete.csv")
+ucs <- read.csv("results/uc_complete_clean.csv")
 
-ucs.plot <- ucs[,c(34:36, 25:31)] %>%   # 7 features 
+ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features 
   as.data.frame() %>%
   na.omit() %>%
-  dplyr::select(3,2,1,6,9,4,5,7,8,10)
+  dplyr::select(10:8,3,6,1,2,4)
 
 ucs.cor <- cor(ucs.plot, method = c("spearman"))
 

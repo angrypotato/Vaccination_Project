@@ -8,6 +8,8 @@ source(file='PreRun.r')
 library(foreign)
 library(haven)
 
+tehsils <- read.csv("results/tehsils_assemble_new.csv")
+
 # Read in Household, Womens and Children Under 5 Surveys
 
 hh <- read.spss("VaccinationStudy/Data/Pakistan (Punjab)_MICS4_Datasets/Pakistan (Punjab) MICS 2011 SPSS Datasets/hh.sav")
@@ -16,24 +18,21 @@ ch <- read.spss("VaccinationStudy/Data/Pakistan (Punjab)_MICS4_Datasets/Pakistan
 
 ## Redefine names of columns for sake of consistency between the 3 datasets
 
-hh_df <- data.frame(DISTRICT=hh[[which(names(hh)=="HH1A")]],
-                    TEHSIL=hh[[which(names(hh)=="HH1B")]],
+hh_df <- data.frame(TEHSIL=hh[[which(names(hh)=="HH1B")]],
                     urban=hh[[which(names(hh)=="HH6U")]],
                     electricity=hh[[which(names(hh)=="HC8A")]],
                     radio=hh[[which(names(hh)=="HC8B")]],
                     television=hh[[which(names(hh)=="HC8C")]],
                     mobile_phone=hh[[which(names(hh)=="HC9B")]])
 
-wm_df <- data.frame(DISTRICT=wm[[which(names(wm)=="HH1A")]],
-                    TEHSIL=wm[[which(names(wm)=="HH1B")]],
+wm_df <- data.frame(TEHSIL=wm[[which(names(wm)=="HH1B")]],
                     urban=wm[[which(names(wm)=="HH6U")]],
                     mothers_age=wm[[which(names(wm)=="WB2")]],
                     school_boolean=wm[[which(names(wm)=="WB3")]],
                     school_level=wm[[which(names(wm)=="WB4")]],
                     antenatal_care=wm[[which(names(wm)=="MN1")]])
 
-ch_df <- data.frame(DISTRICT=ch[[which(names(ch)=="HH1A")]],
-                    TEHSIL=ch[[which(names(ch)=="HH1B")]],
+ch_df <- data.frame(TEHSIL=ch[[which(names(ch)=="HH1B")]],
                     urban=ch[[which(names(ch)=="HH6U")]],
                     age=ch[[which(names(ch)=="AG2")]],
                     card=ch[[which(names(ch)=="IM2")]],
@@ -42,11 +41,9 @@ ch_df <- data.frame(DISTRICT=ch[[which(names(ch)=="HH1A")]],
 
 # Account for location naming discrepancies to match the names in tehsil and district data
 
-hh_df$DISTRICT <- sapply(hh_df$DISTRICT,solve_district_name)
+
 hh_df$TEHSIL <- sapply(hh_df$TEHSIL,solve_name)
-wm_df$DISTRICT <- sapply(wm_df$DISTRICT,solve_district_name)
 wm_df$TEHSIL <- sapply(wm_df$TEHSIL,solve_name)
-ch_df$DISTRICT <- sapply(ch_df$DISTRICT,solve_district_name)
 ch_df$TEHSIL <- sapply(ch_df$TEHSIL,solve_name)
 
 
@@ -101,7 +98,7 @@ get_var <- function(df1,df2,attr,res){
     x <- "TEHSIL"
   }
   df1[,attr] <- 0
-  df <- merge(df1,recode_values(df2,attr,res),by=x)
+  df <- merge(df1,recode_values(df2,attr,res),by=x, all.x = T)
   df[,attr]<- df[,ncol(df)]
   if(res==1){
     df <- df[,-c(ncol(df)-2,ncol(df)-1)]
@@ -126,7 +123,7 @@ include_var <- function(df1,df2,attr,res){
     x <- "TEHSIL"
     df2 <- data.frame(df2[,c(x,attr)] %>% group_by(TEHSIL) %>% summarise_each(funs(mean)))
   }
-  df <- merge(df1,df2,by=x)
+  df <- merge(df1,df2,by=x, all.x=T)
   df[,attr]<- df[,ncol(df)]
   if(res==1){
     df <- df[,-c(ncol(df)-2,ncol(df)-1)]
@@ -180,31 +177,6 @@ hh_df[(hh_df$hh_urban == 2),]$hh_urban <- 1
 ch_df[(ch_df$ch_urban == 2),]$ch_urban <- 1
 wm_df[(wm_df$wm_urban == 2),]$wm_urban <- 1
 
-# Integrate District level data with Covariates using previously developed functions
-
-districts$electricity <- 0
-districts$radio <- 0
-districts$television<- 0
-districts$mobile_phone <- 0
-
-
-districts <- get_var(districts,hh_df,"radio",1)
-districts <- get_var(districts,hh_df,"electricity",1)
-districts <- get_var(districts,hh_df,"television",1)
-districts <- get_var(districts,hh_df,"mobile_phone",1)
-districts <- get_var(districts,ch_df,"dtp_boolean",1)
-districts <- get_var(districts,ch_df,"card",1)
-districts <- get_var(districts,wm_df,"school_boolean",1)
-districts <- get_var(districts,wm_df,"antenatal_care",1)
-districts <- include_var(districts,ch_df,"age",1)
-districts <- include_var(districts,wm_df,"mothers_age",1)
-districts <- include_var(districts,ch_df,"dtp_number",1)
-districts <- include_var(districts,wm_df,"school_level",1)
-districts <- get_var(districts,wm_df,"wm_urban",1)
-districts <- get_var(districts,hh_df,"hh_urban",1)
-districts <- get_var(districts,ch_df,"ch_urban",1)
-
-districts$urban_to_rural <- (districts$ch_urban + districts$wm_urban + districts$hh_urban) /3
 
 # Integrate Tehsil level data with Covariates from MICS using previously developed functions
 
@@ -226,5 +198,5 @@ tehsils <- get_var(tehsils,ch_df,"ch_urban",2)
 
 tehsils$urban_to_rural <- (tehsils$ch_urban + tehsils$wm_urban + tehsils$hh_urban) /3
 
-write.csv(tehsils, "D:\\Xiaoting\\VaccinationProject\\tehsils_mics.csv")
+write.csv(tehsils, "results/tehsils_mics_new.csv")
 write.csv(districts, "D:\\Xiaoting\\VaccinationProject\\districts_mics.csv")

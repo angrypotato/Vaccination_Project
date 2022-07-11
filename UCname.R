@@ -164,3 +164,18 @@ test3_na <- test3[is.nan(test3$OutreachProportion),]   ### got 19
 test4 <- test3[!is.nan(test3$OutreachProportion),]
 
 write.csv(test4, "results/uc_complete_test.csv")
+
+
+### 7/11
+uc_complete <- read.csv("results/uc_complete_test.csv")
+uc_covar <- read.csv("results/ucs_covariates_7.8.csv")
+uc_vacc <- read.csv("results/ucs_vacc_new.csv")
+
+uc_complete_clean <- uc_complete[,c(2:4, 24:30, 51:53)]
+uc_complete_clean <- uc_complete_clean[complete.cases(uc_complete_clean),] %>%
+  distinct()   ### 2742
+
+dup_uc <- data.frame(table(uc_complete_clean$UC)) %>% 
+  filter(Freq > 1)   ### 0 dup uc names
+
+write.csv(uc_complete_clean, "results/uc_complete_clean.csv")

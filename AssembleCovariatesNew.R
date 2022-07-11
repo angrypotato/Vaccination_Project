@@ -27,7 +27,7 @@ ucs <- ucs[which(ucs$PROVINCE == 'Punjab'),] %>%
 
 ### Clean Geographic Field Names
 tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
-ucs <- ucs[!duplicated(ucs$UC),]
+ucs <- ucs[!duplicated(ucs$UC),]   ### instead of solve_uc_name
 
 ### Remove Tehsils that were Mistakenly Labelled as being in Punjab
 tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK','FAISALABAD SADDAR')),]
@@ -36,18 +36,16 @@ tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK','FAISALABAD SADDAR')),]
 tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
 
  
- # Join Fertility, Elevation, Poverty and Night Lights Covariates ----
+# Join Fertility, Elevation, Poverty and Night Lights Covariates ----
 
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility",1)
-ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility")
-
 tehsils <- get_geovars("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation",1)
-ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation")
-
 tehsils <- get_geovars("VaccinationStudy/Data/pak07povmpi.tif","poverty",1)
-ucs <- get_geovars_uc("VaccinationStudy/Data/pak07povmpi.tif","poverty")
-
 tehsils <- get_geovars("VaccinationStudy/Data/NLDI_2006_0p25_rev20111230.tif","night_lights",1)
+
+ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_births_pp_v2_2015.tif","fertility")
+ucs <- get_geovars_uc("VaccinationStudy/Data/PAK_msk_alt/PAK_msk_alt.grd","elevation")
+ucs <- get_geovars_uc("VaccinationStudy/Data/pak07povmpi.tif","poverty")
 
 
 # Distance to Lakes/Rivers Covariate ----
@@ -318,7 +316,7 @@ for(i in 1:NROW(pop_df)){
   name <- solve_name(cell$Tehsil)
   tehsils[which(tehsils$TEHSIL == name),]$child_population <- cell$population
 }
-
+ 
 
 ## UC ----
  
@@ -365,3 +363,4 @@ ucs$population_density <- ucs$Population / ucs$Shape_Area
 
 
 write.csv(ucs, "D:\\Xiaoting\\Vaccination_Project\\results\\ucs_covariates_7.8.csv")
+write.csv(tehsils, "results/tehsils_assemble_new.csv")
