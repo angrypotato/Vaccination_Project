@@ -200,3 +200,8 @@ winnermodelscoeffs <- models[8,] # Find the best model
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
 
+
+
+### test pearson's r between poverty and proportion
+lmod <- lm(OutreachProportion ~ ., data = tehsils.plot[,-c(2:3)])
+summary(lmod)
