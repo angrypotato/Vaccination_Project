@@ -55,6 +55,18 @@ rcorr(ucs$poverty, ucs$TotalOutreachCoverage, type = c("pearson"))
 # Maps ----
 
 
+## prep ----
+
+tehsils.map <- tehsils %>%
+  mutate(clinic_per_child = fac_number / child_population)
+
+library("ggplot2")
+theme_set(theme_bw())
+library("sf")
+
+
+
+
 
 
 # partial correlation matrix ----

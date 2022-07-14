@@ -82,25 +82,39 @@ clean_df <- function(fl){
   no_town <- transform(no_town, lat = as.numeric(lat),
                        long = as.numeric(long))
   no_town$valid[no_town$long < 60  || no_town$lat < 20 || no_town$long >90 || no_town$lat > 50] <- 0
-  use_coords <- no_town[(no_town$valid == 1),]
-  use_coords <- na.exclude(use_coords)
-  coordinates(use_coords)<- ~long +lat
-  proj4string(use_coords) <- proj4string(tehsils_shp)
-  f_pts <- over(use_coords, tehsils_shp)
+  
   use_tehsil <- file1[(file1$has_tehsil == 1),]
-  new_use_coords <- f_pts[,c(3,4)]
-  new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
   new_use_tehs <- use_tehsil[,c(2,3,5,6,7)]
-  new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
   colnames(new_use_tehs)[colnames(new_use_tehs)=="town_name"] <- "TEHSIL"
   colnames(new_use_tehs)[colnames(new_use_tehs)=="district_name"] <- "DISTRICT"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
   colnames(new_use_tehs)[colnames(new_use_tehs) == "daily_reg_no"] <- "Vaccination"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
-  colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
-  new_use_coords[complete.cases(new_use_coords$TEHSIL),]
+  
+  if (nrow(no_town[(no_town$valid == 1),]) > 0) {
+    use_coords <- no_town[(no_town$valid == 1),]
+    use_coords <- na.exclude(use_coords)
+    coordinates(use_coords)<- ~long +lat
+    proj4string(use_coords) <- proj4string(tehsils_shp)
+    f_pts <- over(use_coords, tehsils_shp)
+    
+    new_use_coords <- f_pts[,c(3,4)]
+    new_use_coords <- cbind(new_use_coords, use_coords$lat, use_coords$long)
+    new_use_coords <- cbind(new_use_coords,use_coords$Vaccination)
+    colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$Vaccination"] <- "Vaccination"
+    colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$lat"] <- "lat"
+    colnames(new_use_coords)[colnames(new_use_coords) == "use_coords$long"] <- "long"
+
+    vaccs_data <- rbind(new_use_coords,new_use_tehs)
+    
+  } else {
+    vaccs_data <- new_use_tehs[complete.cases(new_use_tehs$TEHSIL),]
+  }
+  
+  vaccs_data[complete.cases(vaccs_data$TEHSIL),]
+  
 }
 
+
+# epi_files_new <- epi_files[21:66]
 
 for(file in 1:length(epi_files)){
   f <- clean_df(epi_files[file])
@@ -153,8 +167,11 @@ for(file in 1:length(epi_files)){
     
     tehsils[which(tehsils$TEHSIL == tehs),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_out_clinic + penta3_out
   }
-  
+  print(file)
 }
+
+
+### problematic: epi_files[c(20,24)]
 
 
 

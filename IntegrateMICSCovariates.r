@@ -198,5 +198,5 @@ tehsils <- get_var(tehsils,ch_df,"ch_urban",2)
 
 tehsils$urban_to_rural <- (tehsils$ch_urban + tehsils$wm_urban + tehsils$hh_urban) /3
 
-write.csv(tehsils, "results/tehsils_mics_new.csv")
+write.csv(tehsils, "results/tehsils_mics_7.14.csv")
 write.csv(districts, "D:\\Xiaoting\\VaccinationProject\\districts_mics.csv")

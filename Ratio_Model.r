@@ -8,7 +8,7 @@
 # 2.  Develop Models Using Such Covariates in Order to Predict this Ratio of Outreach / In Clinic 
 # Pentavalent Vaccinations - Feature selection using RFE, Boruta.  Predictive Model using GBM, Lasso and GAM.  
 
-source(file='VaccinationStudy/PreRun.r')
+source(file='PreRunNew.r')
 
 
 # For Tehsil ----

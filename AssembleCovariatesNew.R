@@ -30,7 +30,10 @@ tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
 ucs <- ucs[!duplicated(ucs$UC),]   ### instead of solve_uc_name
 
 ### Remove Tehsils that were Mistakenly Labelled as being in Punjab
-tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK','FAISALABAD SADDAR')),]
+tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK')),]   ### 136 obs left
+
+### 'FAISALABAD SADDAR' ??? 
+
 
 ### Sahiwal is the name of 2 tehsils, one in Sahiwal district and another outside, therefore lets name the sahiwal in the sahiwal district - SAHIWAL_SAHIWAL
 tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
@@ -208,7 +211,6 @@ for(i in 1:NROW(dist_pop_df)){
 
 total_population <- read.csv(file = 'VaccinationStudy/Data/population_pak_2018-10-01.csv')
 tehsils$Population <- 0
-districts$Population <- 0
 ucs$Population <- 0
 
 coordinates(total_population)<- ~longitude +latitude
@@ -363,4 +365,4 @@ ucs$population_density <- ucs$Population / ucs$Shape_Area
 
 
 write.csv(ucs, "D:\\Xiaoting\\Vaccination_Project\\results\\ucs_covariates_7.8.csv")
-write.csv(tehsils, "results/tehsils_assemble_new.csv")
+write.csv(tehsils, "results/tehsils_assemble_7.14.csv")
