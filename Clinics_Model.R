@@ -243,3 +243,9 @@ winnermodelscoeffs <- models[6,] # Find the best model (smallest Cp)
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
 
+
+
+
+### 
+lmod <- lm(TotalClinicsCoverage ~ ., data = tehsils.plot[,-c(1,3)])
+summary(lmod)

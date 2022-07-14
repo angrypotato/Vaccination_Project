@@ -284,3 +284,30 @@ tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("DISTRICT","TEH
 tehsils_complete_data <- tehsils_complete[,c(6,2,1,12:21,24,27,30,33,39,42,45,48,51,57,67,70:72)]
 # write.csv(tehsils_complete_data, "results/tehsils_complete_new.csv")
 
+
+
+
+
+# tehsil clinic number ----
+
+tehsils <- read.csv("results/tehsils_complete_new.csv")
+
+coordinates(facilities)<- ~longitude +latitude
+proj4string(facilities) <- proj4string(tehsils_shp)
+fac_points <- over(facilities, tehsils_shp)
+facilities$number <- 1
+fac_binded <- cbind(fac_points, facilities$number)
+fac_binded_df <- data.frame("District" = fac_binded[,3],"Tehsil" = fac_binded[,4], "Population" = fac_binded[,9])
+fac_binded_df<- fac_binded_df %>% 
+  mutate(Tehsil = toupper(Tehsil))
+fac_binded_df[which(fac_binded_df$Tehsil == "SAHIWAL" & fac_binded_df$District == "SAHIWAL"),]$Tehsil <- "SAHIWAL_SAHIWAL"
+
+fac_binded_df$Tehsil <- sapply(fac_binded_df$Tehsil,solve_name)
+fac_binded_df <- fac_binded_df %>%
+  group_by(Tehsil) %>%
+  summarise(fac_number = sum(Population)) %>%
+  rename(TEHSIL = Tehsil)
+
+tehsils <- merge(tehsils, fac_binded_df, by="TEHSIL", all.x = T)
+write.csv(tehsils, "results/tehsils_complete_new.csv")
+
