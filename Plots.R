@@ -6,11 +6,11 @@ library(corrplot)
 
 tehsils <- read.csv("results/tehsils_complete_new.csv")
 
-tehsils.plot <- tehsils[-c(24,25,60,112),-c(1:5,21)] %>%  
+tehsils.plot <- tehsils[-c(24,25,31,61,113),c(69:71,12:20,23,26,29,32,38,44,47,50,56,66)] %>%  
   as.data.frame() %>%
   dplyr::select(c(21,23,22,1,8:10,7,20,3,5,2,16,15,12,13,19,14,11,18,24))   ### 132 obs.
 
-tehsils.cor <- cor(tehsils.plot, method = c("pearson"))
+tehsils.cor <- cor(tehsils.plot[,-7], method = c("pearson"))
 
 corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
 
@@ -30,6 +30,10 @@ rcorr(tehsils.plot$poverty, tehsils.plot$TotalClinicsCoverage, type = c("pearson
 rcorr(tehsils.plot$poverty, tehsils.plot$TotalOutreachCoverage, type = c("pearson"))
 
 
+### controlling for other covariates
+summary(lm(OutreachProportion ~ ., tehsils.plot[,-c(2,3)]))
+summary(lm(TotalOutreachCoverage ~ ., tehsils.plot[,-c(1,3)]))
+summary(lm(TotalClinicsCoverage ~ ., tehsils.plot[,-c(1,2)]))
 
 
 
@@ -52,6 +56,8 @@ rcorr(ucs$poverty, ucs$TotalOutreachCoverage, type = c("pearson"))
 
 
 
+
+
 # Maps ----
 
 
@@ -61,9 +67,54 @@ tehsils.map <- tehsils %>%
   mutate(clinic_per_child = fac_number / child_population)
 
 library("ggplot2")
-theme_set(theme_bw())
+theme_set(theme_void())
 library("sf")
 
+
+## single plots ----
+punjab.polygon <- st_read("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp") %>%
+  filter(PROVINCE == "PUNJAB") %>%
+  merge(tehsils.map[,c(2,27:31)], by = "TEHSIL", all.x = T)
+
+class(punjab.polygon)
+
+
+fac_num <- ggplot(punjab.polygon) + 
+  geom_sf(aes(fill=fac_number)) +
+  scale_fill_gradient(name = "Number of\nClinics", low="lightgreen", high="darkgreen") +
+  theme(legend.position = c(0.9, 0.2),
+        legend.title = element_text(colour="black", size=10, face="bold"))
+
+clinics <- ggplot(punjab.polygon) + 
+  geom_sf(aes(fill=clinic_per_child)) +
+  scale_fill_gradient(name = "Clinic per\nchild capita", low="lightgreen", high="darkgreen") +
+  theme(legend.position = c(0.9, 0.2),
+        legend.title = element_text(colour="black", size=10, face="bold"))
+
+outreach <- ggplot(punjab.polygon) + 
+  geom_sf(aes(fill=TotalOutreachCoverage)) +
+  scale_fill_gradient(name = "Outreach vacc/\nchild capita", low="lightgreen", high="darkgreen") +
+  theme(legend.position = c(0.9, 0.2),
+        legend.title = element_text(colour="black", size=10, face="bold"))
+
+proportion <- ggplot(punjab.polygon) + 
+  geom_sf(aes(fill=OutreachProportion)) +
+  scale_fill_gradient(name = "Outreach\nProportion", low="lightgreen", high="darkgreen") +
+  theme(legend.position = c(0.9, 0.2),
+        legend.title = element_text(colour="black", size=10, face="bold"))
+
+
+
+## combine plots ---- 
+
+library(ggpubr)
+
+figure <- ggarrange(fac_num, clinics, outreach, proportion,
+                    labels = c("A", "B", "C", "D"), label.y = 0.8,
+                    ncol = 4, nrow = 1)
+figure
+
+ggexport(figure, filename = "figure1.pdf")
 
 
 

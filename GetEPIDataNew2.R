@@ -70,7 +70,16 @@ clean_df <- function(fl){
     separate(location, into = c('lat', 'long'), sep=",")
   file1$has_tehsil <- 1
   file1[(file1$town_name == "" | file1$town_name == "NULL"),]$has_tehsil <- 0
-  file1 <- file1[grepl('penta',file1$Vaccination,ignore.case=TRUE),]
+  file1 <- file1[grepl('pentavalent-3',file1$Vaccination,ignore.case=TRUE),]
+  
+  ### use town name
+  use_tehsil <- file1[(file1$has_tehsil == 1),]
+  new_use_tehs <- use_tehsil[,c(2,3,5,6,7)]
+  colnames(new_use_tehs)[colnames(new_use_tehs)=="town_name"] <- "TEHSIL"
+  colnames(new_use_tehs)[colnames(new_use_tehs)=="district_name"] <- "DISTRICT"
+  colnames(new_use_tehs)[colnames(new_use_tehs) == "daily_reg_no"] <- "Vaccination"
+  
+  ### use lat+long
   no_town <- file1[(file1$has_tehsil == 0),]
   no_town$valid <- 1
   no_town$valid[no_town$lat == "0.0"] <- 0
@@ -82,12 +91,6 @@ clean_df <- function(fl){
   no_town <- transform(no_town, lat = as.numeric(lat),
                        long = as.numeric(long))
   no_town$valid[no_town$long < 60  || no_town$lat < 20 || no_town$long >90 || no_town$lat > 50] <- 0
-  
-  use_tehsil <- file1[(file1$has_tehsil == 1),]
-  new_use_tehs <- use_tehsil[,c(2,3,5,6,7)]
-  colnames(new_use_tehs)[colnames(new_use_tehs)=="town_name"] <- "TEHSIL"
-  colnames(new_use_tehs)[colnames(new_use_tehs)=="district_name"] <- "DISTRICT"
-  colnames(new_use_tehs)[colnames(new_use_tehs) == "daily_reg_no"] <- "Vaccination"
   
   if (nrow(no_town[(no_town$valid == 1),]) > 0) {
     use_coords <- no_town[(no_town$valid == 1),]
@@ -109,12 +112,12 @@ clean_df <- function(fl){
     vaccs_data <- new_use_tehs[complete.cases(new_use_tehs$TEHSIL),]
   }
   
-  vaccs_data[complete.cases(vaccs_data$TEHSIL),]
-  
+  vaccs_data <- vaccs_data[complete.cases(vaccs_data$TEHSIL),]
+  vaccs_data
 }
 
 
-# epi_files_new <- epi_files[21:66]
+
 
 for(file in 1:length(epi_files)){
   f <- clean_df(epi_files[file])
@@ -294,7 +297,7 @@ ucs_complete <- merge(ucs_covar, ucs_outcome, by = c("UC", "DISTRICT","TEHSIL"),
 
 tehsils_covar <- read.csv("results/tehsils_covar.csv")
 tehsils_outcome <- read.csv("results/tehsils_vacc.csv")[, c(4,5,12,14)] 
-tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("DISTRICT","TEHSIL"), all.x = T) %>%
+tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("TEHSIL"), all.x = T) %>%
   mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,
          TotalClinicsCoverage = penta3_in_clinic / child_population)
@@ -303,11 +306,31 @@ tehsils_complete_data <- tehsils_complete[,c(6,2,1,12:21,24,27,30,33,39,42,45,48
 
 
 
+#### 7/15 merge newest data
+covar <- read.csv("results/tehsils_mics_7.14.csv")[,c(2,12:20,23,26,29,32,38,44,47,50,56,66)]
+vacc <- read.csv("results/tehsils_vacc_7.15.csv")[,c(5,12,14)]
+fac <- read.csv("results/tehsils_fac_number.csv")[,c(2,10)]
+binded <- merge(covar, vacc, by = "TEHSIL", all.x = T)
+tehsil_complete <- merge(binded, fac, by = "TEHSIL", all.x = T) %>%
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic + penta3_out_clinic),
+         TotalOutreachCoverage = penta3_out_clinic / child_population,  
+         TotalClinicsCoverage = penta3_in_clinic / child_population) 
+write.csv(tehsil_complete, "results/tehsils_complete_7.15.csv")
+
+
+
 
 
 # tehsil clinic number ----
 
-tehsils <- read.csv("results/tehsils_complete_new.csv")
+tehsils_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
+tehsils <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
+tehsils <- data.frame(tehsils)
+tehsils <- tehsils[which(tehsils$PROVINCE == 'PUNJAB'),]
+tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
+tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK')),]   ### 137 obs left
+tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
+
 
 coordinates(facilities)<- ~longitude +latitude
 proj4string(facilities) <- proj4string(tehsils_shp)
@@ -325,6 +348,6 @@ fac_binded_df <- fac_binded_df %>%
   summarise(fac_number = sum(Population)) %>%
   rename(TEHSIL = Tehsil)
 
-tehsils <- merge(tehsils, fac_binded_df, by="TEHSIL", all.x = T)
-write.csv(tehsils, "results/tehsils_complete_new.csv")
+tehsils <- merge(tehsils[,c(2,10)], tehsils2[,-30], by="TEHSIL", all.x = T)
+write.csv(tehsils, "results/tehsils_complete_7.15.csv")
 
