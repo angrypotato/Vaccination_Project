@@ -1,21 +1,23 @@
+
+source(file='PreRunNew.r')
+
 # Correlation plots ----
 
 library(corrplot)
 
 ## Tehsil level ----
 
-tehsils <- read.csv("results/tehsils_complete_new.csv")
+tehsils <- read.csv("results/tehsils_complete_7.18.csv")
 
-tehsils.plot <- tehsils[-c(24,25,31,61,113),c(69:71,12:20,23,26,29,32,38,44,47,50,56,66)] %>%  
-  as.data.frame() %>%
-  dplyr::select(c(21,23,22,1,8:10,7,20,3,5,2,16,15,12,13,19,14,11,18,24))   ### 132 obs.
+tehsils.plot <- tehsils[ , -c(1,2,22,23)] %>%
+  dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20)) 
 
-tehsils.cor <- cor(tehsils.plot[,-7], method = c("pearson"))
+tehsils.cor <- cor(tehsils.plot[-c(24,25,31,61,113),-4], method = c("pearson"))
 
 corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
 
 
-### poverty
+### poverty ----
 
 library("Hmisc")
 
@@ -32,8 +34,8 @@ rcorr(tehsils.plot$poverty, tehsils.plot$TotalOutreachCoverage, type = c("pearso
 
 ### controlling for other covariates
 summary(lm(OutreachProportion ~ ., tehsils.plot[,-c(2,3)]))
-summary(lm(TotalOutreachCoverage ~ ., tehsils.plot[,-c(1,3)]))
-summary(lm(TotalClinicsCoverage ~ ., tehsils.plot[,-c(1,2)]))
+summary(lm(TotalOutreachCoverage ~ ., tehsils.plot[,-c(1,2)]))
+summary(lm(TotalClinicsCoverage ~ ., tehsils.plot[,-c(1,3)]))
 
 
 
@@ -66,7 +68,6 @@ rcorr(ucs$poverty, ucs$TotalOutreachCoverage, type = c("pearson"))
 tehsils.map <- tehsils %>%
   mutate(clinic_per_child = fac_number / child_population)
 
-library("ggplot2")
 theme_set(theme_void())
 library("sf")
 
@@ -74,9 +75,14 @@ library("sf")
 ## single plots ----
 punjab.polygon <- st_read("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp") %>%
   filter(PROVINCE == "PUNJAB") %>%
-  merge(tehsils.map[,c(2,27:31)], by = "TEHSIL", all.x = T)
+  mutate(TEHSIL = sapply(TEHSIL,solve_name)) 
+
+punjab.polygon[which(punjab.polygon$TEHSIL == "SAHIWAL" & punjab.polygon$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
+
+punjab.map <- merge(punjab.polygon, tehsils.map[,c(2,24:28)], by = "TEHSIL", all.x = T)
 
 class(punjab.polygon)
+
 
 
 fac_num <- ggplot(punjab.polygon) + 

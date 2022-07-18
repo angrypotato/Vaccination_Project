@@ -11,6 +11,20 @@
 
 source(file='PreRunNew.r')
 
+
+## read in tehsil data
+
+tehsils_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
+tehsils <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
+tehsils@data$id <- rownames(tehsils@data)
+tehsils <- data.frame(tehsils)
+tehsils <- tehsils[which(tehsils$PROVINCE == 'PUNJAB'),]
+tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
+tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK')),]   ### 136 obs left
+tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
+
+
+
 ## Read in Past EPI Level Extract Files to Get Vaccination Data and Combine Them
 
 epi_files_17 <- list.files(path = "VaccinationStudy/Data/E-Vaccs Data/2017/EPI-Updated", pattern = "*.csv", full.names = T)
@@ -112,7 +126,11 @@ clean_df <- function(fl){
     vaccs_data <- new_use_tehs[complete.cases(new_use_tehs$TEHSIL),]
   }
   
-  vaccs_data <- vaccs_data[complete.cases(vaccs_data$TEHSIL),]
+  vaccs_data <- vaccs_data[complete.cases(vaccs_data$TEHSIL),] 
+  vaccs_data$TEHSIL <- sapply(vaccs_data$TEHSIL,solve_name)
+  vaccs_data <- vaccs_data[!(vaccs_data$TEHSIL %in% c('RAZMAK')),] 
+  vaccs_data[which(vaccs_data$TEHSIL == "SAHIWAL" & vaccs_data$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
+  
   vaccs_data
 }
 
@@ -122,7 +140,6 @@ clean_df <- function(fl){
 for(file in 1:length(epi_files)){
   f <- clean_df(epi_files[file])
   f$Vaccination <- tolower(f$Vaccination)
-  f$TEHSIL <- toupper(f$TEHSIL)
   
   f$has_penta3 <- 0
   f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(f$Vaccination)),1,0)
@@ -173,8 +190,7 @@ for(file in 1:length(epi_files)){
   print(file)
 }
 
-
-### problematic: epi_files[c(20,24)]
+write.csv(tehsils, "results/tehsil_vacc_7.17.csv")
 
 
 
@@ -306,16 +322,16 @@ tehsils_complete_data <- tehsils_complete[,c(6,2,1,12:21,24,27,30,33,39,42,45,48
 
 
 
-#### 7/15 merge newest data
+#### 7/18 merge newest data
 covar <- read.csv("results/tehsils_mics_7.14.csv")[,c(2,12:20,23,26,29,32,38,44,47,50,56,66)]
-vacc <- read.csv("results/tehsils_vacc_7.15.csv")[,c(5,12,14)]
+vacc <- read.csv("results/tehsil_vacc_7.17.csv")[,c(5,11,12)]
 fac <- read.csv("results/tehsils_fac_number.csv")[,c(2,10)]
 binded <- merge(covar, vacc, by = "TEHSIL", all.x = T)
 tehsil_complete <- merge(binded, fac, by = "TEHSIL", all.x = T) %>%
   mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic + penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,  
          TotalClinicsCoverage = penta3_in_clinic / child_population) 
-write.csv(tehsil_complete, "results/tehsils_complete_7.15.csv")
+write.csv(tehsil_complete, "results/tehsils_complete_7.18.csv")
 
 
 
