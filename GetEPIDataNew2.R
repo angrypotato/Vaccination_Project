@@ -188,9 +188,9 @@ for(file in 1:length(epi_files)){
     tehsils[which(tehsils$TEHSIL == tehs),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_out_clinic + penta3_out
   }
   print(file)
-}
+} 
 
-write.csv(tehsils, "results/tehsil_vacc_7.17.csv")
+write.csv(tehsils, "results/tehsil_vacc_7.18.csv")
 
 
 
@@ -322,16 +322,16 @@ tehsils_complete_data <- tehsils_complete[,c(6,2,1,12:21,24,27,30,33,39,42,45,48
 
 
 
-#### 7/18 merge newest data
+#### 7/19 merge newest data
 covar <- read.csv("results/tehsils_mics_7.14.csv")[,c(2,12:20,23,26,29,32,38,44,47,50,56,66)]
-vacc <- read.csv("results/tehsil_vacc_7.17.csv")[,c(5,11,12)]
+vacc <- read.csv("results/tehsil_vacc_7.18.csv")[,c(5,11,12)]
 fac <- read.csv("results/tehsils_fac_number.csv")[,c(2,10)]
 binded <- merge(covar, vacc, by = "TEHSIL", all.x = T)
 tehsil_complete <- merge(binded, fac, by = "TEHSIL", all.x = T) %>%
   mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic + penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,  
          TotalClinicsCoverage = penta3_in_clinic / child_population) 
-write.csv(tehsil_complete, "results/tehsils_complete_7.18.csv")
+write.csv(tehsil_complete, "results/tehsils_complete_7.19.csv")
 
 
 
@@ -356,6 +356,7 @@ fac_binded <- cbind(fac_points, facilities$number)
 fac_binded_df <- data.frame("District" = fac_binded[,3],"Tehsil" = fac_binded[,4], "Population" = fac_binded[,9])
 fac_binded_df<- fac_binded_df %>% 
   mutate(Tehsil = toupper(Tehsil))
+
 fac_binded_df[which(fac_binded_df$Tehsil == "SAHIWAL" & fac_binded_df$District == "SAHIWAL"),]$Tehsil <- "SAHIWAL_SAHIWAL"
 
 fac_binded_df$Tehsil <- sapply(fac_binded_df$Tehsil,solve_name)
