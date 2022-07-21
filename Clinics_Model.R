@@ -14,10 +14,13 @@ source(file='PreRunNew.r')
 ### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
 ### covariates from the Y (Clinic Vaccination Coverage)
 
-# tehsils <- read.csv("results/tehsils_complete.csv")
-tehsils <- tehsils[,c(14:26,28,30,32,34,38,39,44)] %>%   # 19 features + last col the outcome
+# tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the outcome
   scale() %>%
-  as.data.frame()
+  as.data.frame() 
+
+tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic),]   ### 120 obs
+  
 
 ### Split Tehsil data into train and test set
 
@@ -34,7 +37,7 @@ pentaTest <-subset(tehsils, data_split == FALSE)
 ### Use Recursive Feature Elimination for Selection of Signficant Features
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
-results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfcontrol)
+results <- rfe(pentaTrain[,1:20], pentaTrain[,21],sizes=c(1:20), rfeControl=rfcontrol)
 
 # summarize the results
 

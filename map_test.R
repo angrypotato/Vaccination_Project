@@ -32,3 +32,26 @@ plot(punjab.polygon["Shape_Area"])
 ggplot(punjab.polygon) + 
   geom_sf(aes(fill=OutreachProportion)) +
   scale_fill_gradient(low="lightgreen", high="darkgreen")
+
+
+
+
+
+pak <- getData("GADM", country="PK", level=1)
+plot(pak)
+
+pak.province <- fortify(pak, region = "NAME_1") %>%
+  mutate(punjab = 0)
+
+pak.province[which(pak.province$id == "Punjab"),]$punjab <- 1
+
+theme_set(theme_void())
+
+ggplot(pak.province, aes(x = long, y = lat, group = group)) + 
+  geom_polygon(aes(color = as.factor(punjab), fill = as.factor(punjab)), size = 0.8) +
+  scale_color_manual(values = c('1' = 'red', '0' = "Black")) +
+  scale_fill_manual(values =  c('1' = 'white', '0' = "white")) +
+  theme(legend.position = "none")
+  
+
+

@@ -3,17 +3,17 @@ source(file='PreRunNew.r')
 
 # Correlation plots ----
 
-library(corrplot)
 
 ## Tehsil level ----
 
-tehsils <- read.csv("results/tehsils_complete_7.18.csv")
+tehsils <- read.csv("results/tehsils_complete_7.19.csv")
 
-tehsils.plot <- tehsils[ , -c(1,21,22)] %>%
+tehsils.plot <- tehsils[ , -c(1,2,23,22)] %>%
   dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20)) 
 
 tehsils.cor <- cor(tehsils.plot[-c(24,25,31,61,113),], method = c("pearson"))
 
+library(corrplot)
 corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
 
 
@@ -66,47 +66,76 @@ punjab.polygon <- st_read("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Bound
 
 punjab.polygon[which(punjab.polygon$TEHSIL == "SAHIWAL" & punjab.polygon$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
 
-punjab.map <- merge(punjab.polygon, tehsils.map[,c(1,23:27)], by = "TEHSIL", all.x = T) %>%
-  mutate(fac_number = replace_na(fac_number,as.integer(mean(fac_number, na.rm = TRUE))),   ### fill NA with mean
-         clinic_per_child = replace_na(clinic_per_child,as.integer(mean(clinic_per_child, na.rm = TRUE))))
+punjab.map <- merge(punjab.polygon, tehsils.map[,c(2,24:28)], by = "TEHSIL", all.x = T)
+
+### fill NA with mean
+## mutate(fac_number = replace_na(fac_number,as.integer(mean(fac_number, na.rm = TRUE))), clinic_per_child = replace_na(clinic_per_child,as.integer(mean(clinic_per_child, na.rm = TRUE))))
   
 # class(punjab.map)
 
-
+my_theme <- theme(legend.position = c(0.9, 0.2),
+                  legend.title = element_text(colour="black", size=20, face="bold"),
+                  legend.text=element_text(size=15),
+                  legend.key.size = unit(0.8, 'cm'))
 
 fac_num <- ggplot(punjab.map) + 
   geom_sf(aes(fill=fac_number)) +
   scale_fill_gradient(name = "Number of\nClinics", low="lightgreen", high="darkgreen") +
-  theme(legend.position = c(0.9, 0.2),
-        legend.title = element_text(colour="black", size=10, face="bold"))
+  my_theme
 
 clinics <- ggplot(punjab.map) + 
   geom_sf(aes(fill=clinic_per_child)) +
   scale_fill_gradient(name = "Clinic per\nchild capita", low="lightgreen", high="darkgreen") +
-  theme(legend.position = c(0.9, 0.2),
-        legend.title = element_text(colour="black", size=10, face="bold"))
+  my_theme
 
 outreach <- ggplot(punjab.map) + 
   geom_sf(aes(fill=TotalOutreachCoverage)) +
   scale_fill_gradient(name = "Outreach vacc/\nchild capita", low="lightgreen", high="darkgreen") +
-  theme(legend.position = c(0.9, 0.2),
-        legend.title = element_text(colour="black", size=10, face="bold"))
+  my_theme
 
 proportion <- ggplot(punjab.map) + 
   geom_sf(aes(fill=OutreachProportion)) +
   scale_fill_gradient(name = "Outreach\nProportion", low="lightgreen", high="darkgreen") +
-  theme(legend.position = c(0.9, 0.2),
-        legend.title = element_text(colour="black", size=10, face="bold"))
+  my_theme
 
 
+### map on the upper left
+pak <- getData("GADM", country="PK", level=1)
+pak.province <- fortify(pak, region = "NAME_1") %>%
+  mutate(punjab = 0)
+pak.province[which(pak.province$id == "Punjab"),]$punjab <- 1
+theme_set(theme_void())
+pak <- ggplot(pak.province, aes(x = long, y = lat, group = group)) + 
+  geom_polygon(aes(color = as.factor(punjab), fill = as.factor(punjab)), size = 0.8) +
+  scale_color_manual(values = c('1' = 'red', '0' = "Black")) +
+  scale_fill_manual(values =  c('1' = 'white', '0' = "white")) +
+  theme(legend.position = "none")
 
-## combine plots ---- 
+
+### scatter plot
+# tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils.scatter <- tehsils[order(tehsils$OutreachProportion, decreasing = T),] %>%
+  mutate(Tehsil = as.numeric(1:137))
+
+theme_set(theme_classic())
+e <- ggplot(tehsils.scatter, aes(x=Tehsil, y= OutreachProportion)) +
+  geom_point(size=2.5, shape=1) +
+  scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20)) +
+  scale_y_continuous(breaks = seq(from = 0.5, to = 1, by = 0.1)) +
+  xlab("Tehsil (index)") + 
+  ylab("Outreach/all vaccination ratio") +
+  theme(axis.title = element_text(size = 15,color = "black", face="bold"))
+  
+
+
+ ## combine plots ---- 
 
 library(ggpubr)
+theme_set(theme_void())
 
-figure <- ggarrange(fac_num, clinics, outreach, proportion,
-                    labels = c("A", "B", "C", "D"), label.y = 0.8,
-                    ncol = 4, nrow = 1)
+figure <- ggarrange(fac_num, clinics, outreach, proportion, e,
+                    labels = c("A", "B", "C", "D", "E"), label.y = 0.8,
+                    ncol = 5, nrow = 1, align = "h")
 figure
 
 ggexport(figure, filename = "figure1.pdf")
