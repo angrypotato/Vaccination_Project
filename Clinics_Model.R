@@ -20,11 +20,13 @@ tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the out
   as.data.frame() 
 
 tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic),]   ### 120 obs
+no_night_light <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
+
   
 
 ### Split Tehsil data into train and test set
 
-set.seed(1)
+set.seed(0)
 
 data_split = sample.split(tehsils, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils, data_split == TRUE)
@@ -37,7 +39,7 @@ pentaTest <-subset(tehsils, data_split == FALSE)
 ### Use Recursive Feature Elimination for Selection of Signficant Features
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
-results <- rfe(pentaTrain[,1:20], pentaTrain[,21],sizes=c(1:20), rfeControl=rfcontrol)
+results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfcontrol)
 
 # summarize the results
 
@@ -63,6 +65,8 @@ plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xla
 outreach_df <- attStats(boruta_output)
 
 
+
+
 ## Build Models ----
 
 ### Those covariates that were determined 
@@ -76,7 +80,7 @@ outreach_df <- attStats(boruta_output)
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(1:4,7:13, 16, 18, 19),   # selected features + poverty
+  gbm.x = c(1:3,5:12,16,18,19),   # selected features 
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
@@ -85,7 +89,7 @@ ratio.step <- gbm.step(
   cv_folds = 10,
 )
 
-gbm_pred = predict(ratio.step,pentaTest,1000)
+gbm_pred = predict(ratio.step,pentaTest,2500)
 gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
 gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
 gbm_mae <- mae(pentaTest[,20],gbm_pred)
@@ -98,6 +102,7 @@ names(gbm_cfs) <- c("Feature","Rel.Influence")
 xtable(data.frame(gbm_cfs))
 
 
+
 ### GAM ----
 
 # Attain Evaluation Metrics for performance of model using covariates selected
@@ -107,14 +112,14 @@ xtable(data.frame(gbm_cfs))
 control <- trainControl(method="repeatedcv", 
                         number=10,   # k for k-fold CV
                         repeats=3,   
-                        search="grid")   # grid search CV (only tuning method, chose GCV.Cp)
+                        search="grid")   # grid search CV 
 
 ### Producing the GAM Model - tune with K-Folds Validation,Grid Search
 
 ratio_gam_model <-train(TotalClinicsCoverage ~ .,
-                        data = as.data.frame(pentaTrain[,c( 7:13,  19, 20)]),   
-                        method="gam", trControl=control, 
-                        crtuneLength=5)   # try this # dif values of tuning parameters 
+                        data = as.data.frame(pentaTrain[,c(1:3,5:12,16,18,19,20)]),   
+                        method="gam", trControl=control,    ### (only tuning method, chose GCV.Cp)
+                        crtuneLength=5)     ### try this # dif values of tuning parameters 
 ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
 
 ### Evaluate Performances of GAM Model using RMSE,R2,MAE
@@ -130,22 +135,23 @@ xtable(data.frame(ratio_gam_cfs))
 
 
 #### other methods ----
+
 library(mgcv)
 
-gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(night_lights, k=5) + 
-                         s(Population, k=5) + s(child_p
-                                                opulation, k=5) + s(population_density, k=5) + 
+gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) +  s(distance_to_cities, k=5) +
+                         s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) + 
                          s(radio, k=5) + s(electricity, k=5) + s(television, k=5) + s(mobile_phone, k=5) + s(mothers_age, k=5) +
-                         s(urban_to_rural, k=5) + s(distance_to_cities, k=5) +
-                         s(poverty, k = 5))
+                         s(urban_to_rural, k=5) + s(fac_number, k=5))
 
-gam.mod <- gam(gam.form, data = pentaTrain, method = "GCV.Cp")  
+gam.mod <- gam(gam.form, data = pentaTrain, method = "REML")  
 
 gam_preds <- predict(gam.mod, pentaTest, se.fit=T)
 
 ratio_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
 xtable(data.frame(ratio_gam_cfs))
 ### works
+
+
 
 
 # check k: gam.check()
@@ -169,12 +175,14 @@ gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19, 20)]), data.matrix(penta
 
 
 
+
+
 ### LASSO ----
 
 ### Producing the Lasso Model
 
 ratio_lasso_model <- train(TotalClinicsCoverage~., 
-                           data=pentaTrain[,c(1:4,7:13, 16, 18, 19,20)], method="lasso", trControl=control, tuneLength=5)
+                           data=pentaTrain[,c(1:3,5:12,16,18,19,20)], method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model, newdata=pentaTest)
 ratio_lasso_RMSE <- rmse(pentaTest[,20],ratio_lasso_preds)
 ratio_lasso_R2 <- R2(pentaTest[,20],ratio_lasso_preds)
@@ -184,23 +192,41 @@ ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
 
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
-# ratio_lasso_model$finalModel$Cp 
+# which.min(ratio_lasso_model$finalModel$Cp) 
 winnermodelscoeffs <- models[16,] # the best model (smallest Cp)
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
+
+
+#### using glmnet package
+library(glmnet)
+
+y <- pentaTrain$TotalClinicsCoverage
+x <- data.matrix(pentaTrain[, c(1:3,5:12,16,18,19)])
+
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+best_lambda <- cv_model$lambda.min
+best_lambda
+
+plot(cv_model) 
+
+best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef(best_model)
+
 
 
 
 
 # FOR UC ----
 
-# ucs <- read.csv("results/ucs_complete.csv")
-ucs <- ucs[, c(25:31,36)] %>%  # 7 features + last col outcome
+# ucs <- read.csv("results/uc_complete_clean.csv")
+ucs <- ucs[, c(5:11,14)] %>%  # 7 features + last col outcome
   na.omit() %>%
   scale() %>%
   as.data.frame()
 
-set.seed(1)
+set.seed(0)
 data_split <- sample.split(ucs, SplitRatio = 0.8)
 pentaTrain <- subset(ucs, data_split == TRUE)
 pentaTest <-subset(ucs, data_split == FALSE)
@@ -219,6 +245,7 @@ results <- rfe(pentaTrain[,1:7], pentaTrain[,8],sizes=c(1:7), rfeControl=rfcontr
 print(results)
 predictors(results)
 
+
 ### Boruta Selection ----
 
 boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
@@ -230,10 +257,10 @@ plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xla
 outreach_df <- attStats(boruta_output)
 
 
+
 ## Lasso Model ----
 
-
-ratio_lasso_model <- train(TotalClinicsCoverage~., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
+ratio_lasso_model <- train(TotalClinicsCoverage~ ., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
 ratio_lasso_RMSE <- rmse(pentaTest[,8],ratio_lasso_preds)
 ratio_lasso_R2 <- R2(pentaTest[,8],ratio_lasso_preds)
@@ -241,14 +268,10 @@ ratio_lasso_MAE <- MAE(pentaTest[,8],ratio_lasso_preds)
 
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
-# ratio_lasso_model$finalModel$Cp
-winnermodelscoeffs <- models[6,] # Find the best model (smallest Cp)
+# which.min(ratio_lasso_model$finalModel$Cp)
+winnermodelscoeffs <- models[3,] # Find the best model (smallest Cp)
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
 
 
 
-
-### 
-lmod <- lm(TotalClinicsCoverage ~ ., data = tehsils.plot[,-c(1,3)])
-summary(lmod)

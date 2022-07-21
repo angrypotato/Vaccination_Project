@@ -17,16 +17,18 @@ set.seed(1)
 ### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
 ### covariates from the Y (Outreach Vaccination Coverage)
 
-# tehsils <- read.csv("results/tehsils_complete.csv")
-tehsils <- tehsils[,c(14:26,28,30,32,34,38,39,43)] %>%   # 19 features + last col the outcome
+# tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils.outreach <-  tehsils[,c(3:5, 7:21,24,26)] %>%   # 19 features + last col the outcome
   scale() %>%
   as.data.frame()
 
+tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
+
 ### Split Tehsil data into train and test set
 
-data_split = sample.split(tehsils, SplitRatio = 0.8)
-pentaTrain <- subset(tehsils, data_split == TRUE)
-pentaTest <-subset(tehsils, data_split == FALSE)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
+pentaTrain <- subset(tehsils.outreach, data_split == TRUE)
+pentaTest <-subset(tehsils.outreach, data_split == FALSE)
 
 
 ## Feature Selection ----
@@ -69,7 +71,7 @@ outreach_df <- attStats(boruta_output)
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(1:3,6:13,15:17),
+  gbm.x = c(1,2,5:8,16,19),
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
@@ -89,6 +91,8 @@ gbm_cfs <- summary(ratio.step)
 gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
 names(gbm_cfs) <- c("Feature","Rel.Influence")
 xtable(data.frame(gbm_cfs))
+
+
 
 
 ## GAM ----
