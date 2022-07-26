@@ -15,19 +15,19 @@ source(file='PreRunNew.r')
 
 ### Split Data
 
-set.seed(1)
-
 ### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
 ### covariates from the Y (Outreach/Clinic Vaccination Ratio)
 
 
-# tehsils <- read.csv("results/tehsils_complete.csv")
-tehsils <- tehsils[,c(14:26,28,30,32,34,38,39,42)] %>%   # 19 features + last col the outcome
+# tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils <- tehsils[,c(3:5, 7:21,24,25)] %>%   # 19 features + last col the outcome
   scale() %>%
   as.data.frame() %>%
   na.omit()
 
 ### Split into train and test set
+
+set.seed(1)
 
 data_split = sample.split(tehsils, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils, data_split == TRUE)
@@ -47,6 +47,9 @@ print(results)
 predictors(results)
 
 ### Boruta ----
+
+library(Boruta)
+set.seed(1)
 
 boruta_output <- Boruta(OutreachProportion ~ ., data=pentaTrain, doTrace=2)  # perform Boruta search
 
@@ -71,7 +74,7 @@ outreach_df <- attStats(boruta_output)
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(1:4,9:13,16,17),
+  gbm.x = c(1:3,6:10,12,16),
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
@@ -83,7 +86,7 @@ ratio.step <- gbm.step(
 ### Carve out Predictions and Test the Model
 ### Find the RMSE, R2, MAE metrics for evaluating the model
 
-gbm_pred = predict(ratio.step,pentaTest,1000)
+gbm_pred = predict(ratio.step,pentaTest,750)
 gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
 gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
 gbm_mae <- mae(pentaTest[,20],gbm_pred)
@@ -109,10 +112,11 @@ xtable(data.frame(gbm_cfs))
 
 library(mgcv)
 
+# names(pentaTrain)[c(1:3,6:10,12,16)]
+
 gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) + 
-                         s(night_lights, k=5) + s(population_density, k=5) + 
-                         s(radio, k=5) + s(electricity, k=5) + s(television, k=5) + s(mobile_phone, k=5) + 
-                         s(mothers_age, k=5) + s(school_level, k=5))
+                         s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) + 
+                         s(radio, k=5) + s(electricity, k=5) + s(mobile_phone, k=5) +  s(mothers_age, k=5) )
 
 ratio_gam_model <- gam(gam.form, data = pentaTrain, method = "GCV.Cp") 
 
@@ -123,16 +127,17 @@ ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
 ratio_gam_RMSE <- rmse(pentaTest[,20],ratio_gam_preds)
 ratio_gam_R2 <- R2(pentaTest[,20],ratio_gam_preds)
 ratio_gam_MAE <- MAE(pentaTest[,20],ratio_gam_preds)
-ratio_gam_summary <- summary(ratio_gam_model$finalModel)
+ratio_gam_summary <- summary(ratio_gam_model)
 ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
 xtable(data.frame(ratio_gam_cfs))
+View(data.frame(ratio_gam_cfs))
 
 
 
 ## Lasso Model ----
 
 control <- trainControl(method="repeatedcv", number=10, repeats=3,search="grid")
-ratio_lasso_model <- train(OutreachProportion~., data=pentaTrain[,c(1:4,9:13,16,17,20)], method="lasso", trControl=control, tuneLength=5)
+ratio_lasso_model <- train(OutreachProportion~., data=pentaTrain[,c(1:3,6:10,12,16,20)], method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
 ratio_lasso_RMSE <- rmse(pentaTest[,20],ratio_lasso_preds)
 ratio_lasso_R2 <- R2(pentaTest[,20],ratio_lasso_preds)
@@ -143,16 +148,46 @@ ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
 which.min(ratio_lasso_model$finalModel$Cp)
-winnermodelscoeffs <- models[11,] # Find the best model
+
+
+winnermodelscoeffs <- models[4,] # Find the best model
+
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
+View(data.frame(t(winnermodelscoeffs)))
+
+
+### manually choose
+manuallychosen <- models[7,]
+ratio_lasso_cfs <- abs(manuallychosen) 
+xtable(data.frame(t(ratio_lasso_cfs)))
+View(data.frame(t(manuallychosen)))
+
+
+#### method 2
+library(glmnet)
+
+y <- pentaTrain$OutreachProportion
+x <- data.matrix(pentaTrain[,c(1:3,6:10,12,16)])
+
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+best_lambda <- cv_model$lambda.min
+best_lambda
+
+plot(cv_model) 
+
+best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+
+coef(best_model)
+
 
 
 
 # FOR UC ----
 
-ucs <- read.csv("results/ucs_complete.csv")
-ucs <- ucs[, c(25:31,34)] %>%  # 7 features + last col outcome
+ucs <- read.csv("results/uc_complete_clean.csv")
+ucs <- ucs[, c(5:12)] %>%  # 7 features + last col outcome
   na.omit() %>%
   scale() %>%
   as.data.frame()
@@ -199,6 +234,7 @@ which.min(ratio_lasso_model$finalModel$Cp)
 winnermodelscoeffs <- models[8,] # Find the best model
 ratio_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(ratio_lasso_cfs)))
+View(data.frame(t(winnermodelscoeffs)))
 
 
 

@@ -26,7 +26,7 @@ tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
 
 ### Split Tehsil data into train and test set
 
-data_split = sample.split(tehsils.outreach, Splitoutreach = 0.8)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils.outreach, data_split == TRUE)
 pentaTest <-subset(tehsils.outreach, data_split == FALSE)
 
@@ -50,7 +50,7 @@ predictors(results)
 
 library(Boruta)
 
-set.seed(43)
+set.seed(5)
 
 boruta_output <- Boruta(TotalOutreachCoverage ~ ., data=pentaTrain, doTrace=2)  # perform Boruta search
 
@@ -77,7 +77,7 @@ outreach_df <- attStats(boruta_output)
 
 outreach.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(2,3,5:10,14),
+  gbm.x = c(1:3,5:7,9,10,14,19),
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
@@ -105,11 +105,11 @@ xtable(data.frame(gbm_cfs))
 
 library(mgcv)
 
-gam.form <- as.formula(TotalOutreachCoverage ~ s(elevation, k=5) + s(poverty, k=5) + 
-                         s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) + 
-                         s(radio, k=5) + s(electricity, k=5) + s(antenatal_care, k=5))
+gam.form <- as.formula(TotalOutreachCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) + 
+                         s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + 
+                         s(radio, k=5) + s(electricity, k=5) + s(antenatal_care, k=5) + s(fac_number, k=5))
 
-outreach_gam_model <- gam(gam.form, data = pentaTrain, method = "GCV.Cp") 
+outreach_gam_model <- gam(gam.form, data = pentaTrain, method = "REML") 
  
 outreach_gam_preds <- predict(outreach_gam_model,pentaTest)
 
@@ -130,7 +130,7 @@ xtable(data.frame(outreach_gam_cfs))
 #### method 1
 
 control <- trainControl(method="repeatedcv", number=10, repeats=3,search="grid")
-outreach_lasso_model <- train(TotalOutreachCoverage~., data=pentaTrain[,c(2,3,5:10,14,20)], 
+outreach_lasso_model <- train(TotalOutreachCoverage~., data=pentaTrain[,c(1:3,5:7,9,10,14,19,20)], 
                            method="lasso", trControl=control, tuneLength=5)
 outreach_lasso_preds <- predict(outreach_lasso_model,pentaTest)
 outreach_lasso_RMSE <- rmse(pentaTest[,20],outreach_lasso_preds)
@@ -151,7 +151,7 @@ xtable(data.frame(t(outreach_lasso_cfs)))
 library(glmnet)
 
 y <- pentaTrain$TotalOutreachCoverage
-x <- data.matrix(pentaTrain[, c(2,3,5:10,14)])
+x <- data.matrix(pentaTrain[, c(1:3,5:7,9,10,14,19)])
 
 cv_model <- cv.glmnet(x, y, alpha = 1)
 
@@ -161,6 +161,7 @@ best_lambda
 plot(cv_model) 
 
 best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+
 coef(best_model)
 
 
@@ -172,14 +173,14 @@ coef(best_model)
 
 # FOR UC ----
 
-ucs <- read.csv("results/ucs_complete.csv")
-ucs <- ucs[, c(25:31,35)] %>%  # 7 features + last col outcome
+ucs <- read.csv("results/uc_complete_clean.csv")
+ucs <- ucs[, c(5:11, 13)] %>%  # 7 features + last col outcome
   na.omit() %>%
   scale() %>%
   as.data.frame()
 
 set.seed(1)
-data_split = sample.split(ucs, Splitoutreach = 0.8)
+data_split = sample.split(ucs, SplitRatio = 0.8)
 pentaTrain <- subset(ucs, data_split == TRUE)
 pentaTest <-subset(ucs, data_split == FALSE)
 
@@ -197,6 +198,8 @@ predictors(results)
 
 ### Boruta Selection ----
 
+set.seed(1)
+
 boruta_output <- Boruta(TotalOutreachCoverage ~ ., data=pentaTrain, doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
@@ -208,7 +211,7 @@ outreach_df <- attStats(boruta_output)
 
 ## Lasso Model ----
 
-outreach_lasso_model <- train(TotalOutreachCoverage~., data=pentaTrain[,c(1:4,7,8)], method="lasso", trControl=control, tuneLength=5)
+outreach_lasso_model <- train(TotalOutreachCoverage~., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
 outreach_lasso_preds <- predict(outreach_lasso_model,pentaTest)
 outreach_lasso_RMSE <- rmse(pentaTest[,8],outreach_lasso_preds)
 outreach_lasso_R2 <- R2(pentaTest[,8],outreach_lasso_preds)
@@ -217,10 +220,10 @@ outreach_lasso_MAE <- MAE(pentaTest[,8],outreach_lasso_preds)
 coefs <- predict.lars(outreach_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
 outreach_lasso_model$finalModel$Cp 
-winnermodelscoeffs <- models[6,] # Find the best model
+winnermodelscoeffs <- models[8,] # Find the best model
 outreach_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(outreach_lasso_cfs)))
-
+View(data.frame(t(winnermodelscoeffs)))
 
 
 

@@ -81,7 +81,7 @@ my_theme <- theme(legend.position = c(0.9, 0.2),
 fac_num <- ggplot(punjab.map) + 
   geom_sf(aes(fill=fac_number)) +
   scale_fill_gradient(name = "Number of\nClinics", low="lightgreen", high="darkgreen") +
-  my_theme
+  my_theme 
 
 clinics <- ggplot(punjab.map) + 
   geom_sf(aes(fill=clinic_per_child)) +
@@ -90,8 +90,8 @@ clinics <- ggplot(punjab.map) +
 
 outreach <- ggplot(punjab.map) + 
   geom_sf(aes(fill=TotalOutreachCoverage)) +
-  scale_fill_gradient(name = "Outreach vacc/\nchild capita", low="lightgreen", high="darkgreen") +
-  my_theme
+  scale_fill_gradient(name = "Outreach vacc/\nchild capita", low="lightgreen", high="darkgreen", breaks = seq(0.1,0.7,0.1)) +
+  my_theme 
 
 proportion <- ggplot(punjab.map) + 
   geom_sf(aes(fill=OutreachProportion)) +
@@ -124,7 +124,8 @@ e <- ggplot(tehsils.scatter, aes(x=Tehsil, y= OutreachProportion)) +
   scale_y_continuous(breaks = seq(from = 0.5, to = 1, by = 0.1)) +
   xlab("Tehsil (index)") + 
   ylab("Outreach/all vaccination ratio") +
-  theme(axis.title = element_text(size = 15,color = "black", face="bold"))
+  theme(axis.title = element_text(size = 20,color = "black", face="bold"),
+        axis.text = element_text(size = 18))
   
 
 
