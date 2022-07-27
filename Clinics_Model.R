@@ -20,7 +20,7 @@ tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the out
   as.data.frame() 
 
 tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic),]   ### 120 obs
-no_night_light <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
+tehsils <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
 
   
 
@@ -45,6 +45,7 @@ results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfco
 
 print(results)
 rfe_sig <- predictors(results)  
+rfe_sig
 
 
 ### Boruta ----
@@ -89,7 +90,7 @@ ratio.step <- gbm.step(
   cv_folds = 10,
 )
 
-gbm_pred = predict(ratio.step,pentaTest,2500)
+gbm_pred = predict(ratio.step,pentaTest,3250)
 gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
 gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
 gbm_mae <- mae(pentaTest[,20],gbm_pred)

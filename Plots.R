@@ -9,20 +9,30 @@ source(file='PreRunNew.r')
 tehsils <- read.csv("results/tehsils_complete_7.19.csv")
 
 tehsils.plot <- tehsils[ , -c(1,2,23,22)] %>%
-  dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20)) 
+  dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20,4))
 
-tehsils.cor <- cor(tehsils.plot[-c(24,25,31,61,113),], method = c("pearson"))
-
-library(corrplot)
-corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
-
-
-### poverty ----
-
+### poverty
 ### controlling for other covariates
 summary(lm(OutreachProportion ~ ., tehsils.plot[,-c(2,3)]))
 summary(lm(TotalOutreachCoverage ~ ., tehsils.plot[,-c(1,2)]))
 summary(lm(TotalClinicsCoverage ~ ., tehsils.plot[,-c(1,3)]))
+
+
+tehsils.plot <- tehsils[ , -c(1,2,23,22)] %>%
+  dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20,4)) %>%
+  rename("Outreach Proportion" = OutreachProportion,
+         "Clinic Vacc Covereage"= TotalClinicsCoverage, "Outreach Vacc Coverage" =TotalOutreachCoverage, "Fertility" = fertility, 
+         "Child Population"=child_population, "Population Density"=population_density, 
+         "Distance to Cities"=distance_to_cities, "Urban Vs Rural" =urban_to_rural, "Poverty"=poverty, "Distance to Lakes/Rivers" =distance_to_lakes_rivers, 
+         "Elevation"=elevation, "Antenatal Care"=antenatal_care, "Vaccination Card"=card, "Electricity"=electricity, "Television"=television, "Maternal Education"=school_level,
+         "Mobile Phone"=mobile_phone, "Radio"=radio, "Mother Age"=mothers_age, "# of Clinics"=fac_number, "Night Lights"=night_lights)
+
+tehsils.cor <- cor(tehsils.plot[complete.cases(tehsils.plot),], method = c("pearson"))
+
+
+library(corrplot)
+corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
+
 
 
 
@@ -35,14 +45,25 @@ ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features
   na.omit() %>%
   dplyr::select(10:8,3,6,1,2,4)
 
+### poverty 
+
+### controlling for other covariates
+summary(lm(OutreachProportion ~ ., ucs.plot[,-c(1,2)]))
+summary(lm(TotalOutreachCoverage ~ ., ucs.plot[,-c(1,3)]))
+summary(lm(TotalClinicsCoverage ~ ., ucs.plot[,-c(2,3)]))
+
+
+ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features 
+  as.data.frame() %>%
+  na.omit() %>%
+  dplyr::select(10:8,3,6,1,2,4) %>%
+  rename("Outreach Proportion" = OutreachProportion,"Clinic Vacc Covereage"= TotalClinicsCoverage, "Outreach Vacc Coverage" =TotalOutreachCoverage, 
+         "Fertility" = fertility, "Child Population"=child_population, "Distance to Cities"=distance_to_cities, "Poverty"=poverty,"Elevation"=elevation)
+  
+
 ucs.cor <- cor(ucs.plot, method = c("pearson"))
 
 corrplot(ucs.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
-
-rcorr(ucs$poverty, ucs$OutreachProportion, type = c("pearson"))
-rcorr(ucs$poverty, ucs$TotalClinicsCoverage, type = c("pearson"))
-rcorr(ucs$poverty, ucs$TotalOutreachCoverage, type = c("pearson"))
-
 
 
 
