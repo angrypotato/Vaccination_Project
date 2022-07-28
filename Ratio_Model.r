@@ -20,7 +20,7 @@ source(file='PreRunNew.r')
 
 
 # tehsils <- read.csv("results/tehsils_complete_7.19.csv")
-tehsils <- tehsils[,c(3:5, 7:21,24,25)] %>%   # 19 features + last col the outcome
+tehsils.ratio <- tehsils[,c(3:5, 7:21,24,25)] %>%   # 19 features + last col the outcome
   scale() %>%
   as.data.frame() %>%
   na.omit()
@@ -29,9 +29,9 @@ tehsils <- tehsils[,c(3:5, 7:21,24,25)] %>%   # 19 features + last col the outco
 
 set.seed(1)
 
-data_split = sample.split(tehsils, SplitRatio = 0.8)
-pentaTrain <- subset(tehsils, data_split == TRUE)
-pentaTest <-subset(tehsils, data_split == FALSE)
+data_split = sample.split(tehsils.ratio, SplitRatio = 0.8)
+pentaTrain <- subset(tehsils.ratio, data_split == TRUE)
+pentaTest <-subset(tehsils.ratio, data_split == FALSE)
 
 
 ## Feature Selection ----
@@ -137,8 +137,8 @@ View(data.frame(ratio_gam_cfs))
 ## Lasso Model ----
 
 control <- trainControl(method="repeatedcv", number=10, repeats=3,search="grid")
-ratio_lasso_model <- train(OutreachProportion~., data=pentaTrain[,c(1:3,6:10,12,16,20)], method="lasso", trControl=control, tuneLength=5)
-ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
+ratio_lasso_model <- train(OutreachProportion~., data=pentaTrain[,c(1:3,6:10,12,16,20)], method="lasso", trControl=control, tuneLength=5)  ### metric = "Rsquared"
+ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest) 
 ratio_lasso_RMSE <- rmse(pentaTest[,20],ratio_lasso_preds)
 ratio_lasso_R2 <- R2(pentaTest[,20],ratio_lasso_preds)
 ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
@@ -148,7 +148,6 @@ ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
 coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
 which.min(ratio_lasso_model$finalModel$Cp)
-
 
 winnermodelscoeffs <- models[4,] # Find the best model
 
@@ -173,6 +172,7 @@ x <- data.matrix(pentaTrain[,c(1:3,6:10,12,16)])
 cv_model <- cv.glmnet(x, y, alpha = 1)
 
 best_lambda <- cv_model$lambda.min
+
 best_lambda
 
 plot(cv_model) 

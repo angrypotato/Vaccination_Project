@@ -19,8 +19,7 @@ tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the out
   scale() %>%
   as.data.frame() 
 
-tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic),]   ### 120 obs
-tehsils <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
+tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
 
   
 
@@ -28,9 +27,9 @@ tehsils <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs 
 
 set.seed(0)
 
-data_split = sample.split(tehsils, SplitRatio = 0.8)
-pentaTrain <- subset(tehsils, data_split == TRUE)
-pentaTest <-subset(tehsils, data_split == FALSE)
+data_split = sample.split(tehsils.clinic, SplitRatio = 0.8)
+pentaTrain <- subset(tehsils.clinic, data_split == TRUE)
+pentaTest <-subset(tehsils.clinic, data_split == FALSE)
 
 
 ## Feature selection ---- 
@@ -182,8 +181,7 @@ gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19, 20)]), data.matrix(penta
 
 ### Producing the Lasso Model
 
-ratio_lasso_model <- train(TotalClinicsCoverage~., 
-                           data=pentaTrain[,c(1:3,5:12,16,18,19,20)], method="lasso", trControl=control, tuneLength=5)
+ratio_lasso_model <- train(TotalClinicsCoverage~., data=pentaTrain[,c(1:3,5:12,16,18,19,20)], method="lasso", trControl=control, tuneLength=5)
 ratio_lasso_preds <- predict(ratio_lasso_model, newdata=pentaTest)
 ratio_lasso_RMSE <- rmse(pentaTest[,20],ratio_lasso_preds)
 ratio_lasso_R2 <- R2(pentaTest[,20],ratio_lasso_preds)
