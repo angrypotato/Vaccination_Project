@@ -145,7 +145,7 @@ ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
 
 # Try different Coefficients of Lasso Model and Check which coefficients produce best results
 
-coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
+coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients",Mode="lambda")   ### Mode="lambda"
 models <- as.data.frame(coefs$coefficients)
 which.min(ratio_lasso_model$finalModel$Cp)
 
