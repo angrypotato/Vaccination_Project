@@ -12,7 +12,6 @@ source(file='PreRunNew.r')
 
 ### Split Data
 
-set.seed(43)
 
 ### Take the existing Tehsil level data with covariates and Vaccination outreachs and parse out the 
 ### covariates from the Y (Outreach Vaccination Coverage)
@@ -26,6 +25,7 @@ tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
 
 ### Split Tehsil data into train and test set
 
+set.seed(43)
 data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
 pentaTrain <- subset(tehsils.outreach, data_split == TRUE)
 pentaTest <-subset(tehsils.outreach, data_split == FALSE)
@@ -86,7 +86,7 @@ outreach.step <- gbm.step(
   cv_folds = 10,
 )
 
-gbm_pred = predict(outreach.step,pentaTest, 550)
+gbm_pred = predict(outreach.step,pentaTest, 500)
 gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
 gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
 gbm_mae <- mae(pentaTest[,20],gbm_pred)
@@ -112,12 +112,10 @@ gam.form <- as.formula(TotalOutreachCoverage ~ s(fertility, k=5) + s(elevation, 
 outreach_gam_model <- gam(gam.form, data = pentaTrain, method = "REML") 
  
 outreach_gam_preds <- predict(outreach_gam_model,pentaTest)
-
-### Evaluate Performances of GAM Model using RMSE,R2,MAE
-
 outreach_gam_RMSE <- rmse(pentaTest[,20],outreach_gam_preds)
 outreach_gam_R2 <- R2(pentaTest[,20],outreach_gam_preds)
 outreach_gam_MAE <- MAE(pentaTest[,20],outreach_gam_preds)
+
 outreach_gam_summary <- summary(outreach_gam_model)
 outreach_gam_cfs <- -log10(as.data.frame(outreach_gam_summary$s.table)['p-value'])
 xtable(data.frame(outreach_gam_cfs))
@@ -165,6 +163,29 @@ best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
 coef(best_model)
 
 
+
+#### ridge
+
+library(glmnet)
+
+y <- pentaTrain$TotalOutreachCoverage
+x <- data.matrix(pentaTrain[, c(1:3,5:7,9,10,14,19)])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+
+best_lambda <- ridge_model$lambda.min
+best_lambda
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+ridge_outcome <- coef(ridge_best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+
+
+outreach_ridge_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1:3,5:7,9,10,14,19)]))
+outreach_ridge_RMSE <- rmse(pentaTest[,20],outreach_ridge_preds)
+outreach_ridge_R2 <- R2(pentaTest[,20],outreach_ridge_preds)
+outreach_ridge_MAE <- MAE(pentaTest[,20],outreach_ridge_preds)
 
 
 
@@ -224,6 +245,30 @@ winnermodelscoeffs <- models[8,] # Find the best model
 outreach_lasso_cfs <- abs(winnermodelscoeffs) 
 xtable(data.frame(t(outreach_lasso_cfs)))
 View(data.frame(t(winnermodelscoeffs)))
+
+
+## ridge ----
+
+library(glmnet)
+
+y <- pentaTrain$TotalOutreachCoverage
+x <- data.matrix(pentaTrain[, -8])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+
+best_lambda <- ridge_model$lambda.min
+best_lambda
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+ridge_outcome <- coef(ridge_best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+
+
+outreach_lasso_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-8]))
+outreach_lasso_RMSE <- rmse(pentaTest[,8],outreach_lasso_preds)
+outreach_lasso_R2 <- R2(pentaTest[,8],outreach_lasso_preds)
+outreach_lasso_MAE <- MAE(pentaTest[,8],outreach_lasso_preds)
 
 
 

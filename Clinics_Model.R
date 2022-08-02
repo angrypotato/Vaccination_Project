@@ -21,7 +21,7 @@ tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the out
 
 tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
 
-  
+
 
 ### Split Tehsil data into train and test set
 
@@ -51,6 +51,7 @@ rfe_sig
 
 ## Use Boruta Selection as another metric to find significant feats
 
+set.seed(0)
 library(Boruta)
 
 boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
@@ -78,7 +79,8 @@ outreach_df <- attStats(boruta_output)
 ### Producing the GBM Model with these significant features
 ### Tuned Learning Rate, Tree Complexity, K-Folds Validation
 
-ratio.step <- gbm.step(
+
+clinic.step <- gbm.step(
   data=pentaTrain, 
   gbm.x = c(1:3,5:12,16,18,19),   # selected features 
   gbm.y = 20,
@@ -89,14 +91,14 @@ ratio.step <- gbm.step(
   cv_folds = 10,
 )
 
-gbm_pred = predict(ratio.step,pentaTest,3250)
+gbm_pred = predict(clinic.step,pentaTest,2750)
 gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
 gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
 gbm_mae <- mae(pentaTest[,20],gbm_pred)
 
 ### What features did the GBM model identify as significant in predicting our Y?
 
-gbm_cfs <- summary(ratio.step)
+gbm_cfs <- summary(clinic.step)
 gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
 names(gbm_cfs) <- c("Feature","Rel.Influence")
 xtable(data.frame(gbm_cfs))
@@ -105,36 +107,9 @@ xtable(data.frame(gbm_cfs))
 
 ### GAM ----
 
-# Attain Evaluation Metrics for performance of model using covariates selected
-
-# Define Params for Cross Validation and Grid Search - will be used in modeling
-
-control <- trainControl(method="repeatedcv", 
-                        number=10,   # k for k-fold CV
-                        repeats=3,   
-                        search="grid")   # grid search CV 
-
-### Producing the GAM Model - tune with K-Folds Validation,Grid Search
-
-ratio_gam_model <-train(TotalClinicsCoverage ~ .,
-                        data = as.data.frame(pentaTrain[,c(1:3,5:12,16,18,19,20)]),   
-                        method="gam", trControl=control,    ### (only tuning method, chose GCV.Cp)
-                        crtuneLength=5)     ### try this # dif values of tuning parameters 
-ratio_gam_preds <- predict(ratio_gam_model,pentaTest)
 
 ### Evaluate Performances of GAM Model using RMSE,R2,MAE
 
-ratio_gam_RMSE <- rmse(pentaTest[,20],ratio_gam_preds)
-ratio_gam_R2 <- R2(pentaTest[,20],ratio_gam_preds)
-ratio_gam_MAE <- MAE(pentaTest[,20],ratio_gam_preds)
-ratio_gam_summary <- summary(ratio_gam_model$finalModel)
-ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
-xtable(data.frame(ratio_gam_cfs))
-
-
-
-
-#### other methods ----
 
 library(mgcv)
 
@@ -145,32 +120,15 @@ gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k
 
 gam.mod <- gam(gam.form, data = pentaTrain, method = "REML")  
 
-gam_preds <- predict(gam.mod, pentaTest, se.fit=T)
+gam_preds <- predict(gam.mod, pentaTest)
 
-ratio_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
-xtable(data.frame(ratio_gam_cfs))
-### works
+clinic_gam_RMSE <- rmse(pentaTest[,20],gam_preds)
+clinic_gam_R2 <- R2(pentaTest[,20],gam_preds)
+clinic_gam_MAE <- MAE(pentaTest[,20],gam_preds)
 
-
-
-
-# check k: gam.check()
-
-# Error: Model has more coefficients than data 
-
-## check wiggliness
-df_chosen <- pentaTrain[,c(1,2,4,7:13, 16, 18, 19, 20)]
-par(mfrow=c(5,3))
-for (n in 1:(length(df_chosen)-1)) {
-  plot(df_chosen[,n], df_chosen[,14])
-  curve_values <- loess(df_chosen[,14] ~ df_chosen[,n])
-  lines(predict(curve_values), x = df_chosen[,n], col = "red",lwd = 1)
-}
-par(mfrow=c(1,1))
-
-
-library(gamreg)
-gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19, 20)]), data.matrix(pentaTrain[,20]))
+clinic_gam_summary <- summary(gam.mod$finalModel)
+clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
+xtable(data.frame(clinic_gam_cfs))
 
 
 
@@ -181,20 +139,25 @@ gam.mod <- cv.gam(data.matrix(pentaTrain[,c( 7:13,  19, 20)]), data.matrix(penta
 
 ### Producing the Lasso Model
 
-ratio_lasso_model <- train(TotalClinicsCoverage~., data=pentaTrain[,c(1:3,5:12,16,18,19,20)], method="lasso", trControl=control, tuneLength=5)
-ratio_lasso_preds <- predict(ratio_lasso_model, newdata=pentaTest)
-ratio_lasso_RMSE <- rmse(pentaTest[,20],ratio_lasso_preds)
-ratio_lasso_R2 <- R2(pentaTest[,20],ratio_lasso_preds)
-ratio_lasso_MAE <- MAE(pentaTest[,20],ratio_lasso_preds)
+control <- trainControl(method="repeatedcv", 
+                        number=10,   # k for k-fold CV
+                        repeats=3,   
+                        search="grid")   # grid search CV 
+
+clinic_lasso_model <- train(TotalClinicsCoverage~., data=pentaTrain[,c(1:3,5:12,16,18,19,20)], method="lasso", trControl=control, tuneLength=5)
+clinic_lasso_preds <- predict(clinic_lasso_model, newdata=pentaTest)
+clinic_lasso_RMSE <- rmse(pentaTest[,20],clinic_lasso_preds)
+clinic_lasso_R2 <- R2(pentaTest[,20],clinic_lasso_preds)
+clinic_lasso_MAE <- MAE(pentaTest[,20],clinic_lasso_preds)
 
 # Try different Coefficients of Lasso Model and Check which coefficients produce best results
 
-coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
+coefs <- predict.lars(clinic_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
-# which.min(ratio_lasso_model$finalModel$Cp) 
+# which.min(clinic_lasso_model$finalModel$Cp) 
 winnermodelscoeffs <- models[16,] # the best model (smallest Cp)
-ratio_lasso_cfs <- abs(winnermodelscoeffs) 
-xtable(data.frame(t(ratio_lasso_cfs)))
+clinic_lasso_cfs <- abs(winnermodelscoeffs) 
+xtable(data.frame(t(clinic_lasso_cfs)))
 
 
 #### using glmnet package
@@ -214,6 +177,27 @@ best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
 coef(best_model)
 
 
+#### ridge
+library(glmnet)
+
+y <- pentaTrain$TotalClinicsCoverage
+x <- data.matrix(pentaTrain[, c(1:3,5:12,16,18,19)])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+
+best_lambda <- ridge_model$lambda.min
+best_lambda
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+ridge_outcome <- coef(best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+
+
+clinic_lasso_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1:3,5:12,16,18,19)]))
+clinic_lasso_RMSE <- rmse(pentaTest[,20],clinic_lasso_preds)
+clinic_lasso_R2 <- R2(pentaTest[,20],clinic_lasso_preds)
+clinic_lasso_MAE <- MAE(pentaTest[,20],clinic_lasso_preds)
 
 
 
@@ -259,18 +243,40 @@ outreach_df <- attStats(boruta_output)
 
 ## Lasso Model ----
 
-ratio_lasso_model <- train(TotalClinicsCoverage~ ., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
-ratio_lasso_preds <- predict(ratio_lasso_model,pentaTest)
-ratio_lasso_RMSE <- rmse(pentaTest[,8],ratio_lasso_preds)
-ratio_lasso_R2 <- R2(pentaTest[,8],ratio_lasso_preds)
-ratio_lasso_MAE <- MAE(pentaTest[,8],ratio_lasso_preds)
+clinic_lasso_model <- train(TotalClinicsCoverage~ ., data=pentaTrain, method="lasso", trControl=control, tuneLength=5)
+clinic_lasso_preds <- predict(clinic_lasso_model,pentaTest)
+clinic_lasso_RMSE <- rmse(pentaTest[,8],clinic_lasso_preds)
+clinic_lasso_R2 <- R2(pentaTest[,8],clinic_lasso_preds)
+clinic_lasso_MAE <- MAE(pentaTest[,8],clinic_lasso_preds)
 
-coefs <- predict.lars(ratio_lasso_model$finalModel,type="coefficients")
+coefs <- predict.lars(clinic_lasso_model$finalModel,type="coefficients")
 models <- as.data.frame(coefs$coefficients)
-# which.min(ratio_lasso_model$finalModel$Cp)
+# which.min(clinic_lasso_model$finalModel$Cp)
 winnermodelscoeffs <- models[3,] # Find the best model (smallest Cp)
-ratio_lasso_cfs <- abs(winnermodelscoeffs) 
-xtable(data.frame(t(ratio_lasso_cfs)))
+clinic_lasso_cfs <- abs(winnermodelscoeffs) 
+xtable(data.frame(t(clinic_lasso_cfs)))
+
+View(data.frame(t(winnermodelscoeffs)))
 
 
+## Ridge ----
+
+y <- pentaTrain$TotalClinicsCoverage
+x <- data.matrix(pentaTrain[, c(3,4,7)])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+
+best_lambda <- ridge_model$lambda.min
+best_lambda
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+ridge_outcome <- coef(ridge_best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+
+
+clinic_ridge_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(3,4,7)]))
+clinic_ridge_RMSE <- rmse(pentaTest[,8],clinic_ridge_preds)
+clinic_ridge_R2 <- R2(pentaTest[,8],clinic_ridge_preds)
+clinic_ridge_MAE <- MAE(pentaTest[,8],clinic_ridge_preds)
 
