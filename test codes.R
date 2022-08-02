@@ -481,3 +481,65 @@ for(file in 1:length(epi_files)){
     tehsils[which(tehsils$TEHSIL == t),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta3_out_clinic + penta3_out
   }
 }
+
+
+
+
+
+### 
+## 2017
+epi_17 <- c(epi_files_17,non_epi_files_17)
+test <- tehsils
+
+for(file in 1:length(epi_17)){
+  f <- clean_df(epi_files[file])
+  f$Vaccination <- tolower(f$Vaccination)
+  
+  f$has_penta3 <- 0
+  f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(f$Vaccination)),1,0)
+  tot.instance.penta3 <- tot.instance.penta3 + sum(f$has_penta3)  # global index
+  
+  in_clinics <- test$penta3_in_clinic   # local index recording data before running this file
+  
+  ### in clinic 
+  for(fa in 1:NROW(facilities)){
+    fac <- facilities[fa,]
+    name <- fac$facility_name
+    
+    # filter obs in the facility radius
+    clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
+                        & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+    
+    num_clinic <- NROW(clinic_f)
+    if (num_clinic >0) {
+      facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
+      
+      num_teh <- length(unique(clinic_f$TEHSIL))   # for different tehsils in the clinic range
+      for (t in 1:num_teh) {
+        tehs <- unique(clinic_f$TEHSIL)[t]
+        
+        instance.penta3 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta3)  
+        # instance of inclinic_penta3 in each tehsil
+        
+        test[(test$TEHSIL == tehs),]$penta3_in_clinic <- test[(test$TEHSIL == tehs),]$penta3_in_clinic + instance.penta3
+        facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
+      }
+    }  
+  }
+  
+  # outreach
+  for(k in 1:NROW(test)) { 
+    tehs <- test$TEHSIL[k]
+    if(is.na(tehs)){
+      next
+    }
+    
+    ftable <- f[which((f$TEHSIL == tehs) & (f$has_penta3 == 1)),]
+    fpenta3<- sum(ftable$has_penta3)
+    ### in_clinic obs in this file of this tehsil
+    penta3_out <- fpenta3 - (test[(test$TEHSIL == tehs),]$penta3_in_clinic - in_clinics[k])
+    
+    test[which(test$TEHSIL == tehs),]$penta3_out_clinic <- test[(test$TEHSIL == tehs),]$penta3_out_clinic + penta3_out
+  }
+  print(file)
+} 
