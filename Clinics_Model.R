@@ -91,7 +91,7 @@ clinic.step <- gbm.step(
   cv_folds = 10,
 )
 
-gbm_pred = predict(clinic.step,pentaTest,2750)
+gbm_pred = predict(clinic.step,pentaTest,3100)
 gbm_rmse <- rmse(pentaTest[,20],gbm_pred)
 gbm_rsquared <- R2(pentaTest[,20],gbm_pred)
 gbm_mae <- mae(pentaTest[,20],gbm_pred)
@@ -189,7 +189,7 @@ best_lambda <- ridge_model$lambda.min
 best_lambda
 
 ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
-ridge_outcome <- coef(best_model)
+ridge_outcome <- coef(ridge_best_model)
 View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
 View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
 

@@ -486,7 +486,7 @@ for(file in 1:length(epi_files)){
 
 
 
-### 
+# outcome by year ---- 
 ## 2017
 epi_17 <- c(epi_files_17,non_epi_files_17)
 test <- tehsils
@@ -543,3 +543,78 @@ for(file in 1:length(epi_17)){
   }
   print(file)
 } 
+
+
+
+
+
+# model performance ---- 
+
+adj.r2 <- function(r, n, p) {
+  1 - (1-r)*(n-1)/(n-p-1)
+}
+
+
+## clinic
+
+clinic.step <- gbm.step(
+  data=pentaTrain, 
+  gbm.x = c(1:3,5:10,12,16,18,19),   # selected features 
+  gbm.y = 20,
+  family = "gaussian",
+  tree.complexity = 2,
+  learning.rate = 0.005,
+  bag.fraction = 0.5,
+  cv_folds = 10,
+)
+
+gbm_pred = predict(clinic.step,pentaTest)
+rmse(pentaTest[,20],gbm_pred)
+R2(pentaTest[,20],gbm_pred)
+mae(pentaTest[,20],gbm_pred)
+
+gbm_cfs <- summary(clinic.step)
+gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
+names(gbm_cfs) <- c("Feature","Rel.Influence")
+xtable(data.frame(gbm_cfs))
+
+
+
+gam.form <- as.formula(TotalClinicsCoverage ~ s(elevation, k=5) + s(poverty, k=5) +  s(distance_to_cities, k=5) +
+                         s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) + 
+                         s(radio, k=5)   + s(mothers_age, k=5) +
+                         s(urban_to_rural, k=5))
+
+gam.mod <- gam(gam.form, data = pentaTrain, method = "REML")  
+
+gam_preds <- predict(gam.mod, pentaTest)
+
+rmse(pentaTest[,20],gam_preds)
+R2(pentaTest[,20],gam_preds)
+MAE(pentaTest[,20],gam_preds)
+
+clinic_gam_summary <- summary(gam.mod$finalModel)
+clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
+xtable(data.frame(clinic_gam_cfs))
+
+
+
+
+y <- pentaTrain$TotalClinicsCoverage
+x <- data.matrix(pentaTrain[, c(1:2,5,7:9,11,18)])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+
+best_lambda <- ridge_model$lambda.min
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+ridge_outcome <- coef(ridge_best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+
+
+clinic_lasso_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1:2,5,7:9,11,18)]))
+rmse(pentaTest[,20],clinic_lasso_preds)
+R2(pentaTest[,20],clinic_lasso_preds)
+MAE(pentaTest[,20],clinic_lasso_preds)
+

@@ -190,7 +190,7 @@ for(file in 1:length(epi_files)){
   print(file)
 } 
 
-write.csv(tehsils, "results/tehsil_vacc_7.18.csv")
+write.csv(tehsils, "results/tehsil_vacc_8.2.csv")
 
 
 
@@ -379,7 +379,7 @@ epi_17 <- c(epi_files_17,non_epi_files_17)
 tehsils_17 <- tehsils
 
 for(file in 1:length(epi_17)){
-  f <- clean_df(epi_files[file])
+  f <- clean_df(epi_17[file])
   f$Vaccination <- tolower(f$Vaccination)
   
   f$has_penta3 <- 0
@@ -440,7 +440,7 @@ epi_18 <- c(epi_files_18,non_epi_files_18)
 tehsils_18 <- tehsils
 
 for(file in 1:length(epi_18)){
-  f <- clean_df(epi_files[file])
+  f <- clean_df(epi_18[file])
   f$Vaccination <- tolower(f$Vaccination)
   
   f$has_penta3 <- 0
@@ -502,7 +502,7 @@ epi_19 <- c(epi_files_19,non_epi_files_19)
 tehsils_19 <- tehsils
 
 for(file in 1:length(epi_19)){
-  f <- clean_df(epi_files[file])
+  f <- clean_df(epi_19[file])
   f$Vaccination <- tolower(f$Vaccination)
   
   f$has_penta3 <- 0
