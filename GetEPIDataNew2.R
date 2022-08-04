@@ -559,13 +559,17 @@ write.csv(tehsils_19, "results/tehsil_vacc_19.csv")
 
 sum(tehsils_17$penta3_in_clinic)
 sum(tehsils_17$penta3_out_clinic)
+sum(tehsils_17$penta3_out_clinic)/(sum(tehsils_17$penta3_out_clinic)+sum(tehsils_17$penta3_in_clinic))
+
 sum(tehsils_18$penta3_in_clinic)
 sum(tehsils_18$penta3_out_clinic)
+sum(tehsils_18$penta3_out_clinic)/(sum(tehsils_18$penta3_out_clinic)+sum(tehsils_18$penta3_in_clinic))
+
 sum(tehsils_19$penta3_in_clinic)
 sum(tehsils_19$penta3_out_clinic)
+sum(tehsils_19$penta3_out_clinic)/(sum(tehsils_19$penta3_out_clinic)+sum(tehsils_19$penta3_in_clinic))
 
 tehsils_all <- read.csv("results/tehsils_complete_7.19.csv")
-sum(sum(tehsils_17$penta3_in_clinic) + sum(tehsils_18$penta3_in_clinic) + sum(tehsils_19$penta3_in_clinic)) == sum(tehsils_all$penta3_in_clinic)  ## F
-sum(sum(tehsils_17$penta3_out_clinic) + sum(tehsils_18$penta3_out_clinic) + sum(tehsils_19$penta3_out_clinic)) == sum(tehsils_all$penta3_out_clinic)  ## F
+sum(sum(tehsils_17$penta3_in_clinic) + sum(tehsils_18$penta3_in_clinic) + sum(tehsils_19$penta3_in_clinic)) == sum(tehsils_all$penta3_in_clinic)  
+sum(sum(tehsils_17$penta3_out_clinic) + sum(tehsils_18$penta3_out_clinic) + sum(tehsils_19$penta3_out_clinic)) == sum(tehsils_all$penta3_out_clinic)  
 
-### 4631244 vs 4412051
