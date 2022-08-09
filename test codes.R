@@ -716,4 +716,82 @@ data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2),
 
 
 
+# maternal edu ----
 
+## repeat feature selection ----
+
+library(Boruta)
+
+tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the outcome
+  scale() %>%
+  as.data.frame() 
+
+tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
+
+
+rfe <- list()
+boruta <- list()
+
+for (i in 1:5) {
+  set.seed(i)
+  data_split = sample.split(tehsils.clinic, SplitRatio = 0.8)
+  pentaTrain <- subset(tehsils.clinic, data_split == TRUE)
+  
+  rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
+  results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfcontrol)
+  rfe[[i]] <- predictors(results)  
+  
+  set.seed(i)
+  boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
+  boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
+  boruta[[i]] <- print(boruta_signif)
+}
+
+
+## proportion ----
+
+recode_education <- function(x) {
+  switch(as.character(x),
+         'Preschool' = 1,
+         'Primary' = 2,
+         'Middle' = 3,
+         'Matric' = 4,
+         'Above Matric' = 5,
+         'Missing' = NA,
+         as.numeric(x)
+  )
+}
+
+wm_df$school_level <- sapply(wm_df$school_level,recode_education)
+
+
+include_var <- function(df1,df2){
+  
+  ### remove missing
+  
+  if(NROW(df2[which(df2[,"school_level"] == "Missing"),])>0){
+    df2[which(df2[,"school_level"] == "Missing"),][,"school_level"] <- NA
+  }
+  df2 <- df2[complete.cases(df2[,"school_level"]),]
+  
+  ### calculate proportion
+  
+  x <- "TEHSIL"
+  df3 <- data.frame(df2[,c(x,"school_level")] %>% 
+                      group_by(TEHSIL) %>% 
+                      summarise(teh_obs = n(),
+                                Preschool = sum(school_level == 1)/teh_obs,
+                                Primary = sum(school_level == 2)/teh_obs,
+                                Middle = sum(school_level == 3)/teh_obs,
+                                Matric = sum(school_level == 4)/teh_obs,
+                                Above = sum(school_level == 5)/teh_obs)
+                    )
+  
+  df <- merge(df1,df3,by=x, all.x=T)
+
+  df
+}
+
+tehsils_test <- include_var(tehsils,wm_df)
+write.csv(tehsils_test, "results/maternal_edu.csv")

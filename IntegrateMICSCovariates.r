@@ -3,12 +3,22 @@
 
 # Call Source File for Required Libraries and Functions
 
-source(file='PreRun.r')
+source(file='PreRunNew.r')
 
 library(foreign)
 library(haven)
 
-tehsils <- read.csv("results/tehsils_assemble_new.csv")
+## read in tehsil data
+
+tehsils_shp <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
+tehsils <- readOGR("VaccinationStudy/Data/Adminbdy Shapefile/Tehsil_Boundary.shp")
+tehsils@data$id <- rownames(tehsils@data)
+tehsils <- data.frame(tehsils)
+tehsils <- tehsils[which(tehsils$PROVINCE == 'PUNJAB'),]
+tehsils$TEHSIL <- sapply(tehsils$TEHSIL,solve_name)
+tehsils <- tehsils[!(tehsils$TEHSIL %in% c('RAZMAK')),]   ### 136 obs left
+tehsils[which(tehsils$TEHSIL == "SAHIWAL" & tehsils$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
+
 
 # Read in Household, Womens and Children Under 5 Surveys
 
@@ -54,7 +64,7 @@ hh_df[(hh_df$TEHSIL == "SAHIWAL" & hh_df$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAH
 wm_df[(wm_df$TEHSIL == "SAHIWAL" & wm_df$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
 ch_df[(ch_df$TEHSIL == "SAHIWAL" & ch_df$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
 
-# Recode Survey Responses
+# Recode Binary Survey Responses
 
 recode <- function(x) {
   switch(as.character(x),
@@ -66,7 +76,7 @@ recode <- function(x) {
   )
 }
 
-# Function to recode variables of each survey dataset
+# Function to recode variables of each survey dataset (factor to numeric)
 
 recode_values <- function(df,y,res){
   if(res == 1){
@@ -88,7 +98,7 @@ recode_values <- function(df,y,res){
   df
 }
 
-# Function to attain certain variables from MICS dataset and integrate with Tehsil/District Data
+# Function to attain binary variables from MICS dataset and integrate with Tehsil Data
 
 get_var <- function(df1,df2,attr,res){
   if(res==1){
@@ -106,7 +116,7 @@ get_var <- function(df1,df2,attr,res){
   df
 }
 
-# Function to attain other variables from MICS dataset and integrate with Tehsil/District Data
+# Function to attain multi-level categorical variables from MICS dataset and integrate with Tehsil Data
 
 include_var <- function(df1,df2,attr,res){
   
@@ -180,6 +190,7 @@ wm_df[(wm_df$wm_urban == 2),]$wm_urban <- 1
 
 # Integrate Tehsil level data with Covariates from MICS using previously developed functions
 
+## binary categorical vars
 tehsils <- get_var(tehsils,hh_df,"radio",2)
 tehsils <- get_var(tehsils,hh_df,"electricity",2)
 tehsils <- get_var(tehsils,hh_df,"television",2)
@@ -188,10 +199,16 @@ tehsils <- get_var(tehsils,ch_df,"dtp_boolean",2)
 tehsils <- get_var(tehsils,ch_df,"card",2)
 tehsils <- get_var(tehsils,wm_df,"school_boolean",2)
 tehsils <- get_var(tehsils,wm_df,"antenatal_care",2)
+
+## multiple levels 
+tehsils <- include_var(tehsils,wm_df,"school_level",2)
+
+## continuous
 tehsils <- include_var(tehsils,ch_df,"age",2)
 tehsils <- include_var(tehsils,wm_df,"mothers_age",2)
 tehsils <- include_var(tehsils,ch_df,"dtp_number",2)
-tehsils <- include_var(tehsils,wm_df,"school_level",2)
+
+## urban_rural_ratio
 tehsils <- get_var(tehsils,wm_df,"wm_urban",2)
 tehsils <- get_var(tehsils,hh_df,"hh_urban",2)
 tehsils <- get_var(tehsils,ch_df,"ch_urban",2)
