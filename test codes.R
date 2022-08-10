@@ -158,7 +158,7 @@ for(fa in 1:NROW(facilities)){
   fac <- facilities[fa,]
   name <- fac$facility_name
   clinic_f <- epi_test[which(epi_test$long >= fac$longitude_low & epi_test$long <= fac$longitude_high
-                      & epi_test$lat <= fac$latitude_high & epi_test$lat >= fac$latitude_low),]
+                             & epi_test$lat <= fac$latitude_high & epi_test$lat >= fac$latitude_low),]
   # filter obs in the facility radius
   
   num_clinic <- NROW(clinic_f)
@@ -225,21 +225,21 @@ for(file in 1:3){
     fac <- facilities[fa,]
     name <- fac$facility_name
     clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
-                               & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+                        & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
     tehsil_tab <- tabyl(clinic_f$TEHSIL)
     
     if (nrow(clinic_f) > 0) {
       fac_tehsil <- tehsil_tab$`clinic_f$TEHSIL`[which(tehsil_tab$n == max(tehsil_tab$n))]
       facilities$TEHSIL[fa] <- fac_tehsil
     }
- 
+    
   }
   test_df = cbind(test_df, TEHSIL = facilities$TEHSIL)
 }
 
 test_df %>% pivot_longer(-facility_name, names_to = "TEHSIL", values_to = "Epi") %>% 
   dplyr::select(-TEHSIL) %>% group_by(facility_name) %>% 
-    count(Epi) %>% slice(which.max(n)) %>% select(-n)
+  count(Epi) %>% slice(which.max(n)) %>% select(-n)
 
 
 
@@ -272,13 +272,13 @@ for(fa in 1:NROW(facilities)){
   clinic_f <- epi_test[which(epi_test$long >= fac$longitude_low & epi_test$long <= fac$longitude_high
                              & epi_test$lat <= fac$latitude_high & epi_test$lat >= fac$latitude_low),]
   num_clinic <- NROW(clinic_f)
-
+  
   if (num_clinic >0) {
     facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
     num_teh <- length(unique(clinic_f$TEHSIL))
     for (t in 1:num_teh) {
       tehs <- unique(clinic_f$TEHSIL)[t]
-
+      
       instance.penta1 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta1)
       instance.penta3 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta3)
       # instance of each tehsil
@@ -305,9 +305,9 @@ for(k in 1:NROW(tehsils)) {    ###
   ftable <- epi_test[which((epi_test$TEHSIL == tehs) & (epi_test$has_penta3 == 1)),]
   fpenta1 <- sum(ftable$has_penta1)
   fpenta3<- sum(ftable$has_penta3)
- ### in_clinic obs in this file of this tehsil
+  ### in_clinic obs in this file of this tehsil
   penta3_out <- fpenta3 - (tehsils[(tehsils$TEHSIL == tehs),]$penta3_in_clinic - in_clinics[k])
-
+  
   tehsils[which(tehsils$TEHSIL == tehs),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == tehs),]$penta3_out_clinic + penta3_out
 }
 
@@ -326,8 +326,8 @@ for(k in 1:NROW(tehsils)){
   fpenta1 <- sum(ftable$has_penta1)
   fpenta3<- sum(ftable$has_penta3)
   penta1_out <- fpenta1 - ### # in_clinic obs in this file of this tehsil
-  ### fpenta1 is the total has_penta1 in each file, while tehsils$penta1_in_clinic is the cumulative value
-  penta3_out <- fpenta3 - tot.instance.penta3
+    ### fpenta1 is the total has_penta1 in each file, while tehsils$penta1_in_clinic is the cumulative value
+    penta3_out <- fpenta3 - tot.instance.penta3
   tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta1_out_clinic + penta1_out
   tehsils[which(tehsils$TEHSIL == t),]$penta3_out_clinic <- tehsils[(tehsils$TEHSIL == t),]$penta3_out_clinic + penta3_out
 }
@@ -369,7 +369,7 @@ for(file in 1:length(epi_files)){
     fac <- facilities[fa,]
     name <- fac$facility_name
     clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
-                               & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+                        & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
     # filter obs in the facility radius
     
     clinic_f$has_penta1 <- ifelse(grepl("pentavalent-1", tolower(clinic_f$Vaccination)),1,0)
@@ -718,36 +718,6 @@ data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2),
 
 # maternal edu ----
 
-## repeat feature selection ----
-
-library(Boruta)
-
-tehsils <- read.csv("results/tehsils_complete_7.19.csv")
-tehsils.clinic <- tehsils[,c(3:21,24,27)] %>%   # 19 features + last col the outcome
-  scale() %>%
-  as.data.frame() 
-
-tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
-
-
-rfe <- list()
-boruta <- list()
-
-for (i in 1:5) {
-  set.seed(i)
-  data_split = sample.split(tehsils.clinic, SplitRatio = 0.8)
-  pentaTrain <- subset(tehsils.clinic, data_split == TRUE)
-  
-  rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
-  results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfcontrol)
-  rfe[[i]] <- predictors(results)  
-  
-  set.seed(i)
-  boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
-  boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
-  boruta[[i]] <- print(boruta_signif)
-}
-
 
 ## proportion ----
 
@@ -786,12 +756,55 @@ include_var <- function(df1,df2){
                                 Middle = sum(school_level == 3)/teh_obs,
                                 Matric = sum(school_level == 4)/teh_obs,
                                 Above = sum(school_level == 5)/teh_obs)
-                    )
+  )
   
   df <- merge(df1,df3,by=x, all.x=T)
-
+  
   df
 }
 
 tehsils_test <- include_var(tehsils,wm_df)
 write.csv(tehsils_test, "results/maternal_edu.csv")
+
+### test proportion outcome
+
+tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils.clinic <- tehsils[,c(2:21,24,25)] 
+
+tehsil_edu <- merge(tehsils.clinic,maternal_edu[,c(2,12:16)],by="TEHSIL", all.x=T)[,-1] %>%
+  scale() %>%
+  as.data.frame()
+
+tehsil_edu <- tehsil_edu[complete.cases(tehsil_edu[,-4]), -4]  
+
+
+
+## repeat feature selection ----
+
+library(Boruta)
+
+tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils.clinic <- tehsils[,c(3:21,24,25)] %>%   # 19 features + last col the outcome
+  scale() %>%
+  as.data.frame() 
+
+tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic[,-4]), -4]  ### 132 obs  ### 7/21 using this
+
+
+rfe <- list()
+boruta <- list()
+
+for (i in 1:5) {
+  set.seed(i)
+  data_split = sample.split(tehsil_edu, SplitRatio = 0.8)
+  pentaTrain <- subset(tehsil_edu, data_split == TRUE)
+  
+  rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
+  results <- rfe(pentaTrain[,-20], pentaTrain[,20],sizes=c(1:19,21:25), rfeControl=rfcontrol)
+  rfe[[i]] <- predictors(results)  
+  
+  set.seed(i)
+  boruta_output <- Boruta(OutreachProportion ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
+  boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
+  boruta[[i]] <- print(boruta_signif)
+}

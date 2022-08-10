@@ -442,3 +442,46 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
                          "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)))
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
+
+
+## SE With lambda fixed
+
+set.seed(0)
+
+coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000), "poverty"=rep(0, 1000), "distance_to_cities"=rep(0, 1000),
+                    "Population"=rep(0, 1000), "child_population"=rep(0, 1000), "population_density"=rep(0, 1000))
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_d = pentaTrain[sample(1:nrow(pentaTrain), nrow(pentaTrain), replace = TRUE), ]
+  
+  y <- sample_d$OutreachProportion
+  x <- data.matrix(sample_d[, -8])
+  
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda =15)
+  ridge_outcome <- coef(ridge_best_model)
+  
+  preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-8]))
+  rmse <- rmse(pentaTest[,8],preds)
+  r2 <- R2(pentaTest[,8],preds)
+  mae <- MAE(pentaTest[,8],preds)
+  
+  ## fill in the blank list
+  coefs[i,] <- ridge_outcome@x
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+}
+
+coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
+                         "fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
+                         "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
+                         "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
+                         "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
+                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
+                         "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
+                         "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)))
+data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+
+plot(coefs$population_density)
