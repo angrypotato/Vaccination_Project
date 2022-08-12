@@ -808,3 +808,20 @@ for (i in 1:5) {
   boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
   boruta[[i]] <- print(boruta_signif)
 }
+
+
+
+### combine data 
+tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils_df <- tehsils[,c(2:21,24,25:27)] 
+
+maternal_edu <- read.csv("results/maternal_edu.csv")
+
+tehsil_edu <- merge(tehsils_df,maternal_edu[,c(2,12:16)],by="TEHSIL", all.x=T)[,-1] %>%
+  scale() %>%
+  as.data.frame()
+
+tehsil_edu <- tehsil_edu[complete.cases(tehsil_edu[,-4]), -4]  
+
+write.csv(tehsil_edu,"results/tehsil_edu.csv")
+

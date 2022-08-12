@@ -200,8 +200,6 @@ tehsils <- get_var(tehsils,ch_df,"card",2)
 tehsils <- get_var(tehsils,wm_df,"school_boolean",2)
 tehsils <- get_var(tehsils,wm_df,"antenatal_care",2)
 
-## multiple levels 
-tehsils <- include_var(tehsils,wm_df,"school_level",2)
 
 ## continuous
 tehsils <- include_var(tehsils,ch_df,"age",2)
@@ -217,3 +215,81 @@ tehsils$urban_to_rural <- (tehsils$ch_urban + tehsils$wm_urban + tehsils$hh_urba
 
 write.csv(tehsils, "results/tehsils_mics_7.14.csv")
 write.csv(districts, "D:\\Xiaoting\\VaccinationProject\\districts_mics.csv")
+
+
+
+
+# recode maternal edu ----
+
+
+## proportion ----
+
+recode_education <- function(x) {
+  switch(as.character(x),
+         'Preschool' = 1,
+         'Primary' = 2,
+         'Middle' = 3,
+         'Matric' = 4,
+         'Above Matric' = 5,
+         'Missing' = NA,
+         as.numeric(x)
+  )
+}
+
+wm_df$school_level <- sapply(wm_df$school_level,recode_education)
+
+
+include_var <- function(df1,df2){
+  
+  ### remove missing
+  
+  if(NROW(df2[which(df2[,"school_level"] == "Missing"),])>0){
+    df2[which(df2[,"school_level"] == "Missing"),][,"school_level"] <- NA
+  }
+  df2 <- df2[complete.cases(df2[,"school_level"]),]
+  
+  ### calculate proportion
+  
+  x <- "TEHSIL"
+  df3 <- data.frame(df2[,c(x,"school_level")] %>% 
+                      group_by(TEHSIL) %>% 
+                      summarise(teh_obs = n(),
+                                edu_mode = getmode(school_level))
+  )
+  
+  df <- merge(df1,df3,by=x, all.x=T)
+  
+  df
+}
+
+tehsils_test <- include_var(tehsils,wm_df)
+write.csv(tehsils_test, "results/maternal_edu.csv")
+
+
+
+## using mode ----
+
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+
+include_edu <- function(df1,df2,attr) {
+  df1[,attr] <- 0
+  if(NROW(df2[which(df2[,attr] == "Missing"),])>0){
+    df2[which(df2[,attr] == "Missing"),][,attr] <- NA
+  }
+  df2 <- df2[complete.cases(df2[,attr]),]
+  
+  x <- "TEHSIL"
+  df2 <- data.frame(df2[,c(x,attr)] %>% group_by(TEHSIL) %>% summarise( edu_mode = getmode(school_level)))
+  
+  df <- merge(df1,df2,by=x, all.x=T)
+  df[,attr]<- df[,ncol(df)]
+  df
+}
+
+tehsils <- include_edu(tehsils,wm_df,"school_level")
+write.csv(tehsils, "results/teh_edu.csv")
+

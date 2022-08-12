@@ -471,3 +471,63 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
 plot(coefs$population_density)
+
+
+
+### VIF for lambda selection ----
+
+library(genridge)
+ 
+lmod <- lm(TotalOutreachCoverage ~., data=pentaTrain)
+vif(lmod)
+
+y <- pentaTrain[, "TotalOutreachCoverage"]
+X <- data.matrix(pentaTrain[, c(1:7)])
+
+lambda <- c(0, 0.005, 0.01, 0.02, 0.04, 0.08, 1,5,10,20,30,40,50)
+lridge <- ridge(y,X, lambda=lambda)
+coef(lridge)
+
+vridge <- vif(lridge)
+vridge
+
+# plot VIFs
+pch <- c(15:18, 7, 9)
+clr <- c("black", rainbow(5, start=.6, end=.1))
+
+matplot(rownames(vridge), vridge, type='b', 
+        xlab='Ridge constant (k)', ylab="Variance Inflation", 
+        xlim=c(0, 50), 
+        col=clr, pch=pch, cex=1.2)
+text(0.0, vridge[1,], colnames(vridge), pos=4)
+
+
+
+
+# test edu_mode ----
+
+tehsil.test <- read.csv("results/tehsils_complete_7.19.csv")
+df <- merge(tehsil.test,df3,by=x, all.x=T)
+View(df)
+tehsil.outreach <- df[,c(26,3:21,24,29)]
+
+tehsil.outreach <- as.data.frame(df[,c(26,3:21,24,29)]) %>% scale() %>% as.data.frame()
+set.seed(43)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
+
+tehsils.outreach <- tehsil.outreach
+set.seed(43)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
+pentaTrain <- subset(tehsils.outreach, data_split == TRUE)
+pentaTest <-subset(tehsils.outreach, data_split == FALSE)
+outreach.step <- gbm.step(
+  data=pentaTrain, 
+  gbm.x = c(2:22),
+  gbm.y = 1,
+  family = "gaussian",
+  tree.complexity = 2,
+  learning.rate = 0.005,
+  bag.fraction = 0.5,
+  cv_folds = 10,
+)
+
