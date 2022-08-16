@@ -500,3 +500,13 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
 plot(coefs$population_density)
+
+
+
+# adjusted r-squared ----
+
+adj_r2 <- function(r.squared, n, p) {
+  return (1 - (1 - r.squared) * ((n - 1)/(n-p-1)))
+}
+
+adj_r2()

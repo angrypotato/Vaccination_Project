@@ -6,10 +6,17 @@ source(file='PreRunNew.r')
 
 ## Tehsil level ----
 
-tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+tehsils <- read.csv("results/tehsils_complete_8.15.csv")
 
-tehsils.plot <- tehsils[ , -c(1,2,23,22)] %>%
-  dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20,4))
+tehsils.plot <- tehsils[-c(24,25,31,61,113), c(28,27,26,4:18,20,22,30,25)] %>%
+  rename("Outreach Proportion" = OutreachProportion,
+         "Clinic Vacc Covereage"= TotalClinicsCoverage, "Outreach Vacc Coverage" =TotalOutreachCoverage, "Fertility" = fertility, 
+         "Child Population"=child_population, "Population Density"=population_density, 
+         "Distance to Cities"=distance_to_cities, "Urban Vs Rural" =urban_to_rural, "Poverty"=poverty, "Distance to Lakes/Rivers" =distance_to_lakes_rivers, 
+         "Elevation"=elevation, "Antenatal Care"=antenatal_care, "Vaccination Card"=card, "Electricity"=electricity, "Television"=television, "Maternal Education"=edu_mode,
+         "Mobile Phone"=mobile_phone, "Radio"=radio, "Mother Age"=mothers_age, "# of Clinics"=fac_number, "Night Lights"=night_lights)
+
+tehsils.plot <- tehsils.plot[complete.cases(tehsils.plot),]
 
 ### poverty
 ### controlling for other covariates
@@ -17,15 +24,6 @@ summary(lm(OutreachProportion ~ ., tehsils.plot[,-c(2,3)]))
 summary(lm(TotalOutreachCoverage ~ ., tehsils.plot[,-c(1,2)]))
 summary(lm(TotalClinicsCoverage ~ ., tehsils.plot[,-c(1,3)]))
 
-
-tehsils.plot <- tehsils[ , -c(1,2,23,22)] %>%
-  dplyr::select(c(21,23,22,1,7:9,6,8,19,3,5,2,15,14,11,12,18,13,10,17,20,4)) %>%
-  rename("Outreach Proportion" = OutreachProportion,
-         "Clinic Vacc Covereage"= TotalClinicsCoverage, "Outreach Vacc Coverage" =TotalOutreachCoverage, "Fertility" = fertility, 
-         "Child Population"=child_population, "Population Density"=population_density, 
-         "Distance to Cities"=distance_to_cities, "Urban Vs Rural" =urban_to_rural, "Poverty"=poverty, "Distance to Lakes/Rivers" =distance_to_lakes_rivers, 
-         "Elevation"=elevation, "Antenatal Care"=antenatal_care, "Vaccination Card"=card, "Electricity"=electricity, "Television"=television, "Maternal Education"=school_level,
-         "Mobile Phone"=mobile_phone, "Radio"=radio, "Mother Age"=mothers_age, "# of Clinics"=fac_number, "Night Lights"=night_lights)
 
 tehsils.cor <- cor(tehsils.plot[complete.cases(tehsils.plot),], method = c("pearson"))
 
