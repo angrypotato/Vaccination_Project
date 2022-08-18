@@ -84,7 +84,7 @@ outreach.step <- gbm.step(
   tree.complexity = 2,
   learning.rate = 0.005,
   bag.fraction = 0.5,
-  cv_folds = 10,
+  cv_folds = 10
 )
 
 gbm_pred = predict(outreach.step,pentaTest)

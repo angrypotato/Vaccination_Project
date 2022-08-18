@@ -23,8 +23,7 @@ tehsils.clinic <- tehsils[,c(4:18,20,22,25,30,28)] %>%   # 19 features + last co
   scale() %>%
   as.data.frame() 
 
-tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic), ]  ### 132 obs  ### 7/21 using this
-
+tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic), ]  
 
 
 ### Split Tehsil data into train and test set
