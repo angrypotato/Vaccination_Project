@@ -272,11 +272,11 @@ for (i in 1:1000) {
   y <- sample_d$TotalOutreachCoverage
   x <- data.matrix(sample_d[, c(4,6:8,10,11,15,16)])
   
-  ridge_model <- cv.glmnet(x, y, alpha = 0)
+  ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"))
   
   best_lambda <- ridge_model$lambda.min
   
-  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"))
   ridge_outcome <- coef(ridge_best_model)
   
   preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(4,6:8,10,11,15,16)]))

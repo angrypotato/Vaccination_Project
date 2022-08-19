@@ -825,3 +825,68 @@ tehsil_edu <- tehsil_edu[complete.cases(tehsil_edu[,-4]), -4]
 
 write.csv(tehsil_edu,"results/tehsil_edu.csv")
 
+
+
+
+# high rmse ----
+coefs.ridge <- c(0.058607128,-0.217302534,-0.271244039, 0.199538344,-0.599798873, -0.210596763,-0.033574473,0.201237208, 0.071880267)
+newx <- cbind(data.frame(intercept = rep(1,24)),pentaTest[,c(4,6:8,10,11,15,16)],data.frame(pred = rep(0,24)))
+
+for (n in 1:24) {
+  new.x <- as.numeric(newx[n,c(1:9)])
+  newx[n,10] <- t(coefs.ridge) %*% new.x
+} 
+
+pred.test <- cbind(newx,pentaTest[,20])
+
+
+## outreach coverage
+lmod <- lm(TotalOutreachCoverage  ~., data=pentaTest[,c(2,4,6:8,10,11,15,16,20)])
+rmse(pentaTest[,20],predict(lmod))  ### 0.7441817
+lmod <- lm(TotalOutreachCoverage  ~., data=pentaTest)
+rmse(pentaTest[,20],predict(lmod))   ### 0.2719877
+
+lmod <- lm(TotalOutreachCoverage  ~., data=pentaTrain[,c(2,4,6:8,10,11,15,16,20)])
+rmse(pentaTrain[,20],predict(lmod))   ### 0.7351544
+lmod <- lm(TotalOutreachCoverage  ~., data=pentaTrain)
+rmse(pentaTrain[,20],predict(lmod))   ### 0.7129039
+ 
+lmod <- lm(TotalOutreachCoverage  ~., data=tehsils.outreach[,c(2,4,6:8,10,11,15,16,20)])
+rmse(tehsils.outreach[,20],predict(lmod))   ### 0.7723833
+lmod <- lm(TotalOutreachCoverage  ~., data=tehsils.outreach)
+rmse(tehsils.outreach[,20],predict(lmod))   ### 0.7401399
+
+
+## clinic coverage
+lmod <- lm(TotalClinicsCoverage  ~., data=pentaTest[,c(1:4,6:13,16,20)])
+rmse(pentaTest[,20],predict(lmod))  ### 0.3749108
+lmod <- lm(TotalClinicsCoverage  ~., data=pentaTest)
+rmse(pentaTest[,20],predict(lmod))   ### 0.1529107
+
+lmod <- lm(TotalClinicsCoverage  ~., data=pentaTrain[,c(1:4,6:13,16,20)])
+rmse(pentaTrain[,20],predict(lmod))   ### 0.6790665
+lmod <- lm(TotalClinicsCoverage  ~., data=pentaTrain)
+rmse(pentaTrain[,20],predict(lmod))   ### 0.6276741
+
+lmod <- lm(TotalClinicsCoverage  ~., data=tehsils.clinic[,c(1:4,6:13,16,20)])
+rmse(tehsils.clinic[,20],predict(lmod))   ### 0.7497843
+lmod <- lm(TotalClinicsCoverage  ~., data=tehsils.clinic)
+rmse(tehsils.clinic[,20],predict(lmod))   ### 0.7007717
+
+
+
+## outreach proportion
+lmod <- lm(OutreachProportion  ~., data=pentaTest[,c(1:3,6:12,14,15,19)])
+rmse(pentaTest[,19],predict(lmod))  ### 0.3770375
+lmod <- lm(OutreachProportion  ~., data=pentaTest)
+rmse(pentaTest[,19],predict(lmod))   ### 0.3185875
+
+lmod <- lm(OutreachProportion  ~., data=pentaTrain[,c(1:3,6:12,14,15,19)])
+rmse(pentaTrain[,19],predict(lmod))   ### 0.6386661
+lmod <- lm(OutreachProportion  ~., data=pentaTrain)
+rmse(pentaTrain[,19],predict(lmod))   ### 0.5974394
+
+lmod <- lm(OutreachProportion  ~., data=tehsils.ratio[,c(1:3,6:12,14,15,19)])
+rmse(tehsils.ratio[,19],predict(lmod))   ### 0.7017783
+lmod <- lm(OutreachProportion  ~., data=tehsils.ratio)
+rmse(tehsils.ratio[,19],predict(lmod))   ### 0.686836
