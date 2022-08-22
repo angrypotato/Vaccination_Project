@@ -261,8 +261,6 @@ data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2),
 
 ## ridge Model ----
 
-
-library(glmnet)
 y <- pentaTrain$OutreachProportion
 x <- data.matrix(pentaTrain[,c(1,3,6:9,11,12,14)])
 

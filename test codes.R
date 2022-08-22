@@ -890,3 +890,6 @@ lmod <- lm(OutreachProportion  ~., data=tehsils.ratio[,c(1:3,6:12,14,15,19)])
 rmse(tehsils.ratio[,19],predict(lmod))   ### 0.7017783
 lmod <- lm(OutreachProportion  ~., data=tehsils.ratio)
 rmse(tehsils.ratio[,19],predict(lmod))   ### 0.686836
+
+
+
