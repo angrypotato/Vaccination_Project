@@ -893,3 +893,54 @@ rmse(tehsils.ratio[,19],predict(lmod))   ### 0.686836
 
 
 
+
+# normalization ----
+
+## outreach ridge model
+## using unscaled data, got unscaled coefficient
+## reverse the beta
+
+tehsils <- read.csv("results/tehsils_complete_8.15.csv")
+tehsils.outreach <-  tehsils[,c(4:18,20,22,25,30,27)]
+
+tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
+set.seed(43)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
+pentaTrain <- subset(tehsils.outreach, data_split == TRUE)[,c(4,6:8,10,11,15,16,20)]
+pentaTest <-subset(tehsils.outreach, data_split == FALSE)[,c(4,6:8,10,11,15,16,20)]
+
+
+
+scaled.train = pentaTrain
+scaled.train[,-9] = scale(scaled.train[,-9])
+fit_scale = lm(TotalOutreachCoverage~., data = scaled.train)
+
+
+fit_orig = lm(TotalOutreachCoverage~., data = pentaTrain)
+
+
+ridge_model = cv.glmnet(y=as.matrix(pentaTrain[,9]),x=as.matrix(pentaTrain)[,-9],alpha = 0)
+best_lambda <- ridge_model$lambda.min
+fit_ridge = glmnet(y=as.matrix(pentaTrain[,9]),x=as.matrix(pentaTrain)[,-9],alpha = 0,lambda = best_lambda)
+
+
+AllSD = apply(pentaTrain[,-9],2,sd)
+
+cbind(scaled=coefficients(fit_scale)[-9],
+      from_lm = coefficients(fit_orig)[-9]*AllSD,
+      from_glmnet = coefficients(fit_ridge)[-9]*AllSD)
+
+
+
+####
+data(mtcars)
+scaled_mt = mtcars
+scaled_mt[,-1] = scale(scaled_mt[,-1])
+fit_scaled = lm(mpg ~ .,data=scaled_mt)
+fit = lm(mpg ~ .,data=mtcars)
+fit_lasso = cv.glmnet(y=as.matrix(mtcars[,1]),x=as.matrix(mtcars)[,-1],lambda=c(0.0001,0.00001))
+allSD = apply(mtcars[,-1],2,sd)
+cbind(scaled=coefficients(fit_scaled)[-1],
+      from_lm = coefficients(fit)[-1]*allSD,
+      from_glmnet = coefficients(fit_lasso)[-1]*allSD)
+
