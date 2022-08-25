@@ -14,6 +14,13 @@ library(Boruta)
 library(mgcv)
 library(glmnet)
 std_mean <- function(x) sd(x)/sqrt(length(x))
+test_scale <- function(raw_test, train.mean, train.sd) {
+  df <- raw_test
+  for (n in 1:ncol(df)) {
+    df[,n] <- (raw_test[,n] - train.mean[n])/train.sd[n]
+  }
+  df
+}
 
 
 # For Tehsil ----
@@ -29,7 +36,7 @@ tehsils.ratio <- tehsils[,c(4:18,20,22,25,30,26)] %>%   # 19 features + last col
   scale() %>%
   as.data.frame()
 
-tehsils.ratio <- tehsils.ratio[complete.cases(tehsils.ratio[,-4]), -4]
+tehsils.ratio <- tehsils.ratio[complete.cases(tehsils.ratio), ]
 
 ### Split into train and test set
 
@@ -70,7 +77,7 @@ outreach_df <- attStats(boruta_output)
 ### Those covariates that were determined 
 ### as confirmed or tentatively significant by the Boruta Models along with those that 
 ### were deemed as signfiicant by the RFE featire selection should be those included in modeling
-### after removing night_lights: c(1:3,6:12,14,15)
+### c(1,2,3,7:13,15,16)
 
 ## GBM ----
 
@@ -79,8 +86,8 @@ outreach_df <- attStats(boruta_output)
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(1:3,7:12,14,15),
-  gbm.y = 19,
+  gbm.x = c(1,2,3,7:13,15,16),
+  gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
   learning.rate = 0.005,

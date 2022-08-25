@@ -1,8 +1,8 @@
 # Purpose: 
 
 # 1. Find Which Covariates Are the Most Significant in Predicting 
-# in Clinic Pentavalent Vacc Coverage
-# 2.  Develop Models Using Such Covariates in Order to Predict this In Clinic 
+#  Pentavalent Vacc Coverage via outreach program
+# 2.  Develop Models Using Such Covariates in Order to Predict this outreach 
 # Pentavalent Vaccination Rate - Feature selection using RFE, Boruta.  Predictive Modeling using GBM, Lasso and GAM.  
 
 source(file='PreRunNew.r')
@@ -12,6 +12,7 @@ library(mgcv)
 library(glmnet)
 std_mean <- function(x) sd(x)/sqrt(length(x))
 
+### manually standardize
 test_scale <- function(raw_test, train.mean, train.sd) {
   df <- raw_test
   for (n in 1:ncol(df)) {
@@ -21,37 +22,41 @@ test_scale <- function(raw_test, train.mean, train.sd) {
 }
 
 
-# For Tehsil ----
 
-### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
-### covariates from the Y (Clinic Vaccination Coverage)
+# Tehsil ----
+
+### Split Data
+
+
+### Take the existing Tehsil level data with covariates and Vaccination outreachs and parse out the 
+### covariates from the Y (Outreach Vaccination Coverage)
 
 # tehsils <- read.csv("results/tehsils_complete_8.15.csv")
-tehsils.clinic <- tehsils[,c(4:18,20,22,25,30,28)]
+tehsils.outreach <-  tehsils[,c(4:18,20,22,25,30,27)]
 
-tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic), ]  
-
+tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
 
 ### Split Tehsil data into train and test set
 
-set.seed(0)
-data_split = sample.split(tehsils.clinic, SplitRatio = 0.8)
+set.seed(43)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
 
-pentaTrain.raw <- subset(tehsils.clinic, data_split == TRUE) 
+pentaTrain.raw <- subset(tehsils.outreach, data_split == TRUE) 
 train.sd <- apply(pentaTrain.raw, 2, sd)
 train.mean <- apply(pentaTrain.raw, 2, mean)
 
 pentaTrain <- scale(pentaTrain.raw) %>%
   as.data.frame()
 
-pentaTest.raw <-subset(tehsils.clinic, data_split == FALSE) 
+pentaTest.raw <-subset(tehsils.outreach, data_split == FALSE) 
 
 pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
 
 
-## Feature selection ---- 
 
-### RFE Feature Selection ---- 
+## Feature Selection ----
+
+### RFE Feature Selection ----
 ### Use Recursive Feature Elimination for Selection of Signficant Features
 
 rfcontrol <- rfeControl(functions=rfFuncs, method="repeatedcv", number=10,repeats=3)
@@ -60,20 +65,18 @@ results <- rfe(pentaTrain[,1:19], pentaTrain[,20],sizes=c(1:19), rfeControl=rfco
 # summarize the results
 
 print(results)
-rfe_sig <- predictors(results)  
-rfe_sig
+predictors(results)
 
 
 ### Boruta ----
+# Use Boruta Selection as another metric to find significant feats
 
-## Use Boruta Selection as another metric to find significant feats
+set.seed(22)
 
-set.seed(0)
-
-boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
+boruta_output <- Boruta(TotalOutreachCoverage ~ ., data=pentaTrain, doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
-print(boruta_signif)  # print significant variable rankings
+print(boruta_signif)  # significant variables
 
 ## Plot signficance of covariates in predicting Y and then determine which are listed as confirmed, 
 ## tentative or rejected.   Tentative and Confirmed Covariates will be ultimately considered significant
@@ -81,47 +84,43 @@ print(boruta_signif)  # print significant variable rankings
 plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xlab="Covariate", main="Variable Importance")  # plot variable importance
 outreach_df <- attStats(boruta_output)
 
-
-
-
-## Build Models ----
-
-### Those covariates that were determined as confirmed or tentatively significant by the Boruta Models along with those that 
+### Those covariates that were determined 
+### as confirmed or tentatively significant by the Boruta Models along with those that 
 ### were deemed as signfiicant by the RFE featire selection should be those included in modeling
-### c(1:4,6:13,16)
+### c(1,2,4,6:8,10,11,15)
 
 
-### GBM ----
-### Producing the GBM Model with these significant features
-### Tuned Learning Rate, Tree Complexity, K-Folds Validation
+## GBM ----
 
 ### feature pruning ----
 
-clinic.step <- gbm.step(
+outreach.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x =  c(1:4,6:13,16),   # selected features 
+  gbm.x = c(1,2,4,6:8,10,11,15),
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
   learning.rate = 0.005,
   bag.fraction = 0.5,
-  cv_folds = 10,
+  cv_folds = 10
 )
 
-gbm_pred = predict(clinic.step)
+gbm_pred = predict(outreach.step)
 R2(pentaTrain[,20],gbm_pred)
 
-gbm_cfs <- summary(clinic.step)
+# Get the relative influences provided by GBM to see which features are being most utilized by the model
+
+gbm_cfs <- summary(outreach.step)
 gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
 names(gbm_cfs) <- c("Feature","Rel.Influence")
 xtable(data.frame(gbm_cfs))
 
-#### SE ----
+
+### SE ----
 set.seed(0)
 
-coefs <- data.frame("fertility"=NA, "elevation"=NA, "poverty"=NA,"night_lights"=NA, "distance_to_cities"=NA, "Population"=NA,
-                    "child_population"=NA,"population_density"=NA,  "radio"=NA, "electricity"=NA,"television"=NA,
-                    "mobile_phone"=NA,"mothers_age" =NA)
+coefs <- data.frame("fertility"=NA, "elevation"=NA, "night_lights"=NA,  "distance_to_cities"=NA, "Population"=NA, 
+                    "child_population"=NA,"radio"=NA, "electricity"=NA,"antenatal_care"=NA)
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
@@ -136,7 +135,7 @@ for (i in 1:1000) {
   
   clinic.step <- gbm.step(
     data=sample_d, 
-    gbm.x =  c(1:4,6:13,16),   # selected features 
+    gbm.x =  c(1,2,4,6:8,10,11,15),   # selected features 
     gbm.y = 20,
     family = "gaussian",
     tree.complexity = 2,
@@ -148,16 +147,15 @@ for (i in 1:1000) {
   )
   
   raw_pred = predict(clinic.step,pentaTest)
-  preds <- raw_pred*train.sd[20]+train.mean[20]
+  preds <- raw_preds*train.sd[20]+train.mean[20]
   rmse <- rmse(pentaTest.raw[,20],preds)
   r2 <- R2(pentaTest.raw[,20],preds)
   mae <- MAE(pentaTest.raw[,20],preds)
   
-  
   ## fill in the blank list
   
   gbm_cfs <- summary(clinic.step)
-  sing.mod <- data.frame(matrix(ncol = 13, nrow = 0))
+  sing.mod <- data.frame(matrix(ncol = 9, nrow = 0))
   names(sing.mod) <- gbm_cfs[,1]
   sing.mod[1,] <- gbm_cfs[,2]
   
@@ -172,51 +170,44 @@ for (i in 1:1000) {
 
 coefs <- coefs[-1,]
 
-coef_final <- data.frame("fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)),
+coef_final <- data.frame("fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
-                         "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
-                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)),
+                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)), 
                          "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
-                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)),
+                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
-                         "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)), 
-                         "radio"=c(mean(coefs$radio), std_mean(coefs$radio)),
+                         "radio"=c(mean(coefs$radio), std_mean(coefs$radio)), 
                          "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
-                         "television"=c(mean(coefs$television), std_mean(coefs$television)),
-                         "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
-                         "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
+                         "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)))
+
 
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
 
 
 
+## GAM ----
 
-### GAM ----
+### feature pruning ----
 
+gam.form <- as.formula(TotalOutreachCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(night_lights, k=5) + 
+                         s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + 
+                         s(radio, k=5) + s(electricity, k=5) + s(antenatal_care, k=5))
 
-### Evaluate Performances of GAM Model using RMSE,R2,MAE
+outreach_gam_model <- gam(gam.form, data = pentaTrain, method = "REML") 
 
+preds <- predict(outreach_gam_model)
+R2(pentaTrain[,20],preds)
 
-gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) +  s(night_lights, k=5) + s(distance_to_cities, k=5) +
-                         s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) + 
-                         s(radio, k=5)+ s(electricity, k=5)+ s(television, k=5) + s(mobile_phone, k=5) + s(mothers_age, k=5))
+outreach_gam_summary <- summary(outreach_gam_model)
+outreach_gam_cfs <- -log10(as.data.frame(outreach_gam_summary$s.table)['p-value'])
+xtable(data.frame(outreach_gam_cfs))
 
-clinic_gam_model <- gam(gam.form, data = pentaTrain, method = "REML")  
+### SE ----
+set.seed(0)
 
-gam_preds <- predict(clinic_gam_model)
-R2(pentaTrain[,20],gam_preds)
-
-clinic_gam_summary <- summary(gam.mod$finalModel)
-clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
-xtable(data.frame(clinic_gam_cfs))
-
-#### SE ----
-set.seed(10)
-
-coefs <- data.frame("fertility"=NA,"elevation"=NA, "poverty"=NA, "night_lights"=NA, "distance_to_cities"=NA, "Population"=NA,
-                    "child_population"=NA, "population_density"=NA,  "radio"=NA, "electricity"=NA,
-                    "television"=NA,"mobile_phone"=NA,"mothers_age" =NA)
+coefs <- data.frame("fertility"=NA,"elevation"=NA, "night_lights"=NA, "distance_to_cities"=NA, "Population"=NA,
+                    "child_population"=NA,  "radio"=NA,  "electricity"=NA, "antenatal_care"=NA)
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
@@ -229,22 +220,22 @@ for (i in 1:1000) {
   
   pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
   
-  gam.model <- gam(gam.form, data = sample_d, method = "REML") 
+  gam.mod <- gam(gam.form, data = sample_d, method = "REML") 
   
-  raw_pred = predict(gam.model, pentaTest)
+  raw_pred = predict(gam.mod,pentaTest)
   preds <- raw_pred*train.sd[20]+train.mean[20]
   rmse <- rmse(pentaTest.raw[,20],preds)
   r2 <- R2(pentaTest.raw[,20],preds)
-  mae <- mae(pentaTest.raw[,20],preds)
+  mae <- MAE(pentaTest.raw[,20],preds)
   
   
   ## fill in the blank list
   
-  clinic_gam_summary <- summary(gam.model$finalModel)
-  clinic_gam_cfs <- -log10(as.data.frame(summary(gam.model)$s.table)['p-value'])
+  clinic_gam_summary <- summary(gam.mod$finalModel)
+  clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
   clinic_gam_cfs  <- as.data.frame(t(clinic_gam_cfs))
-  names(clinic_gam_cfs) <- c("fertility","elevation","poverty","night_lights","distance_to_cities","Population","child_population","population_density",
-                             "radio", "electricity","television", "mobile_phone","mothers_age")
+  names(clinic_gam_cfs) <- c("fertility","elevation", "night_lights", "distance_to_cities", "Population",
+                             "child_population",  "radio",  "electricity", "antenatal_care")
   
   coefs <- rbind(coefs, clinic_gam_cfs)
   
@@ -257,18 +248,16 @@ coefs <- coefs[-1,]
 
 coef_clean <- coefs[is.finite(rowSums(coefs)),]
 coef_final <- data.frame("fertility"=c(mean(coef_clean$fertility), std_mean(coef_clean$fertility)),
-                         "elevation"=c(mean(coef_clean$elevation), std_mean(coef_clean$elevation)), 
-                         "poverty"=c(mean(coef_clean$poverty), std_mean(coef_clean$poverty)), 
-                         "night_lights"=c(mean(coef_clean$night_lights), std_mean(coef_clean$night_lights)),
-                         "distance_to_cities"=c(mean(coef_clean$distance_to_cities), std_mean(coef_clean$distance_to_cities)), 
-                         "Population"=c(mean(coef_clean$Population), std_mean(coef_clean$Population)),
-                         "child_population"=c(mean(coef_clean$child_population), std_mean(coef_clean$child_population)), 
-                         "population_density"=c(mean(coef_clean$population_density), std_mean(coef_clean$population_density)), 
-                         "radio"=c(mean(coef_clean$radio), std_mean(coef_clean$radio)),
-                         "electricity"=c(mean(coef_clean$electricity), std_mean(coef_clean$electricity)),
-                         "television"=c(mean(coef_clean$television), std_mean(coef_clean$television)),
-                         "mobile_phone"=c(mean(coef_clean$mobile_phone), std_mean(coef_clean$mobile_phone)),
-                         "mothers_age"=c(mean(coef_clean$mothers_age), std_mean(coef_clean$mothers_age)))
+                         "elevation"=c(mean(coef_clean$elevation), std_mean(coef_clean$elevation)),
+                          "night_lights"=c(mean(coef_clean$night_lights), std_mean(coef_clean$night_lights)),
+                          "distance_to_cities"=c(mean(coef_clean$distance_to_cities), std_mean(coef_clean$distance_to_cities)),
+                          "Population"=c(mean(coef_clean$Population), std_mean(coef_clean$Population)), 
+                          "child_population"=c(mean(coef_clean$child_population), std_mean(coef_clean$child_population)),
+                          "radio"=c(mean(coef_clean$radio),std_mean(coef_clean$radio)),  
+                          "electricity"=c(mean(coef_clean$electricity), std_mean(coef_clean$electricity)),
+                          "antenatal_care"=c(mean(coef_clean$antenatal_care),std_mean(coef_clean$antenatal_care)))
+                         
+                         
 mod_clean <- mod_performance[is.finite(rowSums(coefs)),]
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
@@ -276,18 +265,21 @@ data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2),
 
 
 
-### Ridge ----
+## Ridge ----
 
 
-y <- pentaTrain$TotalClinicsCoverage
-x <- data.matrix(pentaTrain[, c(1:4,6:13,16)])
+### feature pruning ----
+
+y <- pentaTrain$TotalOutreachCoverage
+x <- data.matrix(pentaTrain[, c(1,2,4,6:8,10,11,15)])
 
 ridge_model <- cv.glmnet(x, y, alpha = 0, standardize = F)
 
 best_lambda <- ridge_model$lambda.min
 
-ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
-preds <- predict(ridge_best_model, newx=data.matrix(pentaTrain[, c(1:4,6:13,16)]))
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda, standardize = F)
+
+preds <- predict(ridge_best_model, newx=data.matrix(pentaTrain[, c(1,2,4,6:8,10,11,15)]))
 R2(pentaTrain[,20],preds)
 
 ridge_outcome <- coef(ridge_best_model)
@@ -295,14 +287,14 @@ View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
 
 
 
-#### SE ----
+### SE ----
 set.seed(0)
 
-coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000),  "elevation"=rep(0, 1000),"poverty"=rep(0, 1000), "night_lights"=rep(0, 1000), "distance_to_cities"=rep(0, 1000),
-                    "Population"=rep(0, 1000), "child_population"=rep(0, 1000), "population_density"=rep(0, 1000),  "radio"=rep(0, 1000),
-                    "electricity"=rep(0, 1000),"television"=rep(0, 1000),"mobile_phone"=rep(0, 1000),"mothers_age"=rep(0, 1000))
+coefs <- data.frame("Intercept"= rep(0, 1000),  "fertility"=rep(0, 1000), "elevation"=rep(0, 1000),"night_lights"=rep(0, 1000), "distance_to_cities"=rep(0, 1000),
+                    "Population"=rep(0, 1000), "child_population"=rep(0, 1000), "radio"=rep(0, 1000), "electricity"=rep(0, 1000),
+                    "antenatal_care"=rep(0, 1000))
 
-mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000),"lambda" = rep(0,1000))
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
 for (i in 1:1000) {
   sample_raw = pentaTrain.raw[sample(1:nrow(pentaTrain.raw), nrow(pentaTrain.raw), replace = TRUE), ]
@@ -313,8 +305,8 @@ for (i in 1:1000) {
   
   pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
   
-  y <- sample_d$TotalClinicsCoverage
-  x <- data.matrix(sample_d[, c(1:4,6:13,16)])
+  y <- sample_d$TotalOutreachCoverage
+  x <- data.matrix(sample_d[, c(1,2,4,6:8,10,11,15)])
   
   ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
   
@@ -323,7 +315,7 @@ for (i in 1:1000) {
   ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
   ridge_outcome <- coef(ridge_best_model)
   
-  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[, c(1:4,6:13,16)]))
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1,2,4,6:8,10,11,15)]))
   preds <- raw_preds*train.sd[20]+train.mean[20]
   rmse <- rmse(pentaTest.raw[,20],preds)
   r2 <- R2(pentaTest.raw[,20],preds)
@@ -334,35 +326,60 @@ for (i in 1:1000) {
   mod_performance[i,1] <- rmse
   mod_performance[i,2] <- r2
   mod_performance[i,3] <- mae
-  mod_performance[i,4] <- best_lambda
 }
+
 
 coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
                          "fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
-                         "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
-                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)),
+                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)), 
                          "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
-                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)),
+                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
-                         "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)), 
-                         "radio"=c(mean(coefs$radio), std_mean(coefs$radio)),
-                         "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)), 
-                         "television"=c(mean(coefs$television), std_mean(coefs$television)),
-                         "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)), 
-                         "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
+                         "radio"=c(mean(coefs$radio), std_mean(coefs$radio)), 
+                         "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
+                         "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)))
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
 
 
 
+
+# test edu_mode ----
+
+tehsil.test <- read.csv("results/tehsils_complete_7.19.csv")
+df <- merge(tehsil.test,df3,by=x, all.x=T)
+View(df)
+tehsil.outreach <- df[,c(26,3:21,24,29)]
+
+tehsil.outreach <- as.data.frame(df[,c(26,3:21,24,29)]) %>% scale() %>% as.data.frame()
+set.seed(43)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
+
+tehsils.outreach <- tehsil.outreach
+set.seed(43)
+data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
+pentaTrain <- subset(tehsils.outreach, data_split == TRUE)
+pentaTest <-subset(tehsils.outreach, data_split == FALSE)
+outreach.step <- gbm.step(
+  data=pentaTrain, 
+  gbm.x = c(2:22),
+  gbm.y = 1,
+  family = "gaussian",
+  tree.complexity = 2,
+  learning.rate = 0.005,
+  bag.fraction = 0.5,
+  cv_folds = 10,
+)
+
+
+
 # FOR UC ----
 
-# ucs <- read.csv("results/uc_complete_clean.csv")
-ucs <- ucs[, c(5:11,14)] %>%  # 7 features + last col outcome
-  na.omit() 
+ucs <- read.csv("results/uc_complete_clean.csv")
+ucs <- ucs[, c(5:11, 13)] %>%  # 7 features + last col outcome
+  na.omit()
 
-set.seed(1)
 data_split <- sample.split(ucs, SplitRatio = 0.8)
 pentaTrain.raw <- subset(ucs, data_split == TRUE) 
 train.sd <- apply(pentaTrain.raw, 2, sd)
@@ -376,7 +393,8 @@ pentaTest.raw <-subset(ucs, data_split == FALSE)
 pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
 
 
-## Feature selection ----
+
+## Feature Selection ----
 
 ### RFE Feature Selection ----
 
@@ -388,11 +406,11 @@ results <- rfe(pentaTrain[,1:7], pentaTrain[,8],sizes=c(1:7), rfeControl=rfcontr
 print(results)
 predictors(results)
 
-
 ### Boruta Selection ----
 
 set.seed(1)
-boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
+
+boruta_output <- Boruta(TotalOutreachCoverage ~ ., data=pentaTrain, doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
 print(boruta_signif)  # significant variables
@@ -401,17 +419,42 @@ plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xla
 outreach_df <- attStats(boruta_output)
 
 
-## choose lambda for Ridge ----
 
 
-lmod <- lm(TotalClinicsCoverage ~., data=pentaTrain)
+## ridge ----
+
+### VIF for lambda selection ----
+
+lmod <- lm(TotalOutreachCoverage ~., data=pentaTrain)
 vif(lmod)
 
+y <- pentaTrain[, "TotalOutreachCoverage"]
+X <- data.matrix(pentaTrain[, c(1:7)])
 
-## SE ----
+lambda <- c(0, 0.005, 0.01, 0.02, 0.04, 0.08, 1,5,10,20,22,23,24,25,30,40,50)
+lridge <- ridge(y,X, lambda=lambda)
+coef(lridge)
+
+vridge <- vif(lridge)
+vridge
+
+# plot VIFs
+pch <- c(15:18, 7, 9)
+clr <- c("black", rainbow(5, start=.6, end=.1))
+
+matplot(rownames(vridge), vridge, type='b', 
+        xlab='Ridge constant (k)', ylab="Variance Inflation", 
+        xlim=c(0, 50), 
+        col=clr, pch=pch, cex=1.2)
+text(0.0, vridge[1,], colnames(vridge), pos=4)
+
+
+### SE With lambda fixed ----
+
 set.seed(0)
 
-coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "poverty"=rep(0, 1000), "distance_to_cities"=rep(0, 1000))
+coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000), "poverty"=rep(0, 1000), "distance_to_cities"=rep(0, 1000),
+                    "Population"=rep(0, 1000), "child_population"=rep(0, 1000), "population_density"=rep(0, 1000))
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
@@ -435,20 +478,26 @@ for (i in 1:1000) {
   rmse <- rmse(pentaTest.raw[,8],preds)
   r2 <- R2(pentaTest.raw[,8],preds)
   mae <- MAE(pentaTest.raw[,8],preds)
-  
+   
   ## fill in the blank list
   coefs[i,] <- ridge_outcome@x
   mod_performance[i,1] <- rmse
   mod_performance[i,2] <- r2
   mod_performance[i,3] <- mae
-  
+
 }
 
-
 coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
-                         "fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)),
+                         "fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
+                         "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
                          "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
-                         "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)))
-
+                         "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
+                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
+                         "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
+                         "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)))
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+
+plot(coefs$population_density)
+
+
 

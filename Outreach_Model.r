@@ -21,9 +21,7 @@ std_mean <- function(x) sd(x)/sqrt(length(x))
 ### covariates from the Y (Outreach Vaccination Coverage)
 
 # tehsils <- read.csv("results/tehsils_complete_8.15.csv")
-tehsils.outreach <-  tehsils[,c(4:18,20,22,25,30,27)] %>%   # 19 features + last col the outcome
-  scale() %>%
-  as.data.frame()
+tehsils.outreach <-  tehsils[,c(4:18,20,22,25,30,27)]
 
 tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
 
@@ -31,8 +29,17 @@ tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
 
 set.seed(43)
 data_split = sample.split(tehsils.outreach, SplitRatio = 0.8)
-pentaTrain <- subset(tehsils.outreach, data_split == TRUE)
-pentaTest <-subset(tehsils.outreach, data_split == FALSE)
+
+pentaTrain.df <- subset(tehsils.outreach, data_split == TRUE) 
+train.sd <- apply(pentaTrain.df, 2, sd)
+train.mean <- apply(pentaTrain.df, 2, mean)
+
+pentaTrain <- scale(pentaTrain.df) %>%
+  as.data.frame()
+
+pentaTest.df <-subset(tehsils.outreach, data_split == FALSE) 
+### manually standardize
+
 
 
 ## Feature Selection ----
@@ -240,12 +247,12 @@ data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2),
 y <- pentaTrain$TotalOutreachCoverage
 x <- data.matrix(pentaTrain[, c(4,6:8,10,11,15,16)])
 
-ridge_model <- cv.glmnet(x, y, alpha = 0)
+ridge_model <- cv.glmnet(x, y, alpha = 0, standardize = F)
 
 best_lambda <- ridge_model$lambda.min
 best_lambda
 
-ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda, standardize = F)
 ridge_outcome <- coef(ridge_best_model)
 View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
 View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
