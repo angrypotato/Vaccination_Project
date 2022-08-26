@@ -381,7 +381,7 @@ summary(lmod)
 ucs <- ucs[, c(5:11,14)] %>%  # 7 features + last col outcome
   na.omit() 
 
-set.seed(1)
+set.seed(10)
 data_split <- sample.split(ucs, SplitRatio = 0.8)
 pentaTrain.raw <- subset(ucs, data_split == TRUE) 
 train.sd <- apply(pentaTrain.raw, 2, sd)
@@ -410,7 +410,7 @@ predictors(results)
 
 ### Boruta Selection ----
 
-set.seed(1)
+set.seed(10)
 boruta_output <- Boruta(TotalClinicsCoverage ~ ., data=na.omit(pentaTrain), doTrace=2)  # perform Boruta search
 
 boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])  # collect Confirmed and Tentative variables
@@ -423,7 +423,7 @@ outreach_df <- attStats(boruta_output)
 ## choose lambda for Ridge ----
 
 
-lmod <- lm(TotalClinicsCoverage ~., data=pentaTrain)
+lmod <- lm(TotalClinicsCoverage ~., data=pentaTrain[,c(1,3,4,8)])
 vif(lmod)
 
 
@@ -443,13 +443,15 @@ for (i in 1:1000) {
   
   pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
   
-  y <- sample_d$TotalOutreachCoverage
-  x <- data.matrix(sample_d[, -8])
+  y <- sample_d$TotalClinicsCoverage
+  x <- data.matrix(sample_d[, c(1,3,4)])
   
-  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = 25, standardize = F)
+  ridge_model <- cv.glmnet(x, y, alpha = 0, standardize = F)
+  best_lambda <- ridge_model$lambda.min
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
   ridge_outcome <- coef(ridge_best_model)
   
-  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-8]))
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1,3,4)]))
   preds <- raw_preds*train.sd[8]+train.mean[8]
   rmse <- rmse(pentaTest.raw[,8],preds)
   r2 <- R2(pentaTest.raw[,8],preds)
