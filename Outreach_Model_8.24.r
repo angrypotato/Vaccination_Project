@@ -283,7 +283,7 @@ preds <- predict(ridge_best_model, newx=data.matrix(pentaTrain[, c(1,2,4,6:8,10,
 R2(pentaTrain[,20],preds)
 
 ridge_outcome <- coef(ridge_best_model)
-View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
 
 
 
@@ -372,6 +372,24 @@ outreach.step <- gbm.step(
   cv_folds = 10,
 )
 
+
+## poverty lmod ----
+
+### excluding night_light
+df <- tehsils[,c(4:6,8:18,20,22,25,30,27)] %>%
+  scale()%>%
+  as.data.frame()
+df <- df[complete.cases(df),]
+lmod <- lm(TotalOutreachCoverage ~., df)
+summary(lmod)
+
+### including night_light
+df <- tehsils[,c(4:18,20,22,25,30,27)] %>%
+  scale()%>%
+  as.data.frame()
+df <- df[complete.cases(df),]
+lmod <- lm(TotalOutreachCoverage ~., df)
+summary(lmod)
 
 
 # FOR UC ----
@@ -501,3 +519,11 @@ plot(coefs$population_density)
 
 
 
+## poverty lmod ----
+
+df <- ucs %>%
+  scale()%>%
+  as.data.frame()
+df <- df[complete.cases(df),]
+lmod <- lm(TotalOutreachCoverage ~., df)
+summary(lmod)

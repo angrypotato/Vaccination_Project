@@ -944,3 +944,9 @@ cbind(scaled=coefficients(fit_scaled)[-1],
       from_lm = coefficients(fit)[-1]*allSD,
       from_glmnet = coefficients(fit_lasso)[-1]*allSD)
 
+
+
+
+
+1 - (1 - ans$r.squared) * ((n - df.int)/rdf)
+

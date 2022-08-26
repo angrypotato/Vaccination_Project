@@ -354,6 +354,25 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
 
+## poverty lmod ----
+
+### excluding night_light
+df <- tehsils[,c(4:6,8:18,20,22,25,30,28)] %>%
+  scale()%>%
+  as.data.frame()
+df <- df[complete.cases(df),]
+lmod <- lm(TotalClinicsCoverage ~., df)
+summary(lmod)
+
+### including night_light
+df <- tehsils[,c(4:18,20,22,25,30,28)] %>%
+  scale()%>%
+  as.data.frame()
+df <- df[complete.cases(df),]
+lmod <- lm(TotalClinicsCoverage ~., df)
+summary(lmod)
+
+
 
 
 # FOR UC ----
