@@ -37,6 +37,7 @@ non_epi_files_19 <- list.files(path = "VaccinationStudy/Data/E-Vaccs Data/2019/N
 epi_files <- c(epi_files_17,non_epi_files_17,epi_files_18,non_epi_files_18,
                epi_files_19,non_epi_files_19)
 
+# epi_files <- epi_files[-c(1:7,13:19)]
 
 # Read in Data Regarding Punjab Clinics - the goal is to differentiate between vaccinations given at clinics vs those done via outreach
 
@@ -190,7 +191,7 @@ for(file in 1:length(epi_files)){
   print(file)
 } 
 
-write.csv(tehsils, "results/tehsil_vacc_8.2.csv")
+write.csv(tehsils, "results/tehsil_vacc_9.12.csv")
 
 
 
