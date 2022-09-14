@@ -93,9 +93,9 @@ punjab.map <- merge(punjab.polygon, tehsils.map[,c(2,24:28)], by = "TEHSIL", all
 # class(punjab.map)
 
 my_theme <- theme(legend.position = c(0.9, 0.2),
-                  legend.title = element_text(colour="black", size=20, face="bold"),
-                  legend.text=element_text(size=15),
-                  legend.key.size = unit(0.8, 'cm'))
+                  legend.title = element_text(colour="black", size=24, face="bold"),
+                  legend.text=element_text(size=20),
+                  legend.key.size = unit(1.3, 'cm'))
 
 fac_num <- ggplot(punjab.map) + 
   geom_sf(aes(fill=fac_number)) +
@@ -109,7 +109,7 @@ clinics <- ggplot(punjab.map) +
 
 outreach <- ggplot(punjab.map) + 
   geom_sf(aes(fill=TotalOutreachCoverage)) +
-  scale_fill_gradient(name = "Outreach vacc/\nchild capita", low="lightgreen", high="darkgreen", breaks = seq(0.1,0.7,0.1)) +
+  scale_fill_gradient(name = "Outreach vacc per\nchild capita", low="lightgreen", high="darkgreen", breaks = seq(0.1,0.7,0.1)) +
   my_theme 
 
 proportion <- ggplot(punjab.map) + 
@@ -117,6 +117,10 @@ proportion <- ggplot(punjab.map) +
   scale_fill_gradient(name = "Outreach\nProportion", low="lightgreen", high="darkgreen") +
   my_theme
 
+in_clinic <- ggplot(punjab.map) + 
+  geom_sf(aes(fill=TotalClinicsCoverage)) +
+  scale_fill_gradient(name = "In-clinic vacc per\nchild capita", low="lightgreen", high="darkgreen", breaks = seq(0,0.2,0.05)) +
+  my_theme 
 
 ### map on the upper left
 pak <- getData("GADM", country="PK", level=1)

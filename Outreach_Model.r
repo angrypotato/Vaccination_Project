@@ -513,5 +513,64 @@ plot(coefs$population_density)
 
 
 
+## GBM ----
+set.seed(0)
+
+coefs <- data.frame("fertility"=NA, "elevation"=NA, "poverty"=NA,  "distance_to_cities"=NA, "Population"=NA, 
+                    "child_population"=NA,"population_density"=NA)
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_d = pentaTrain[sample(1:nrow(pentaTrain), nrow(pentaTrain), replace = TRUE), ]
+  
+  clinic.step <- gbm.step(
+    data=sample_d, 
+    gbm.x = c(1:7),   # selected features 
+    gbm.y = 8,
+    family = "gaussian",
+    tree.complexity = 2,
+    learning.rate = 0.005,
+    bag.fraction = 0.5,
+    cv_folds = 10,
+    plot.main = F,
+    verbose = F
+  )
+  
+  gbm_pred = predict(clinic.step,pentaTest)
+  rmse <- rmse(pentaTest[,8],gbm_pred)
+  r2 <- R2(pentaTest[,8],gbm_pred)
+  mae <- mae(pentaTest[,8],gbm_pred)
+  
+  
+  ## fill in the blank list
+  
+  gbm_cfs <- summary(clinic.step)
+  sing.mod <- data.frame(matrix(ncol = 7, nrow = 0))
+  names(sing.mod) <- gbm_cfs[,1]
+  sing.mod[1,] <- gbm_cfs[,2]
+  
+  coefs <- rbind(coefs, sing.mod)
+  
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+  
+  print(i)
+}
+
+coefs <- coefs[-1,]
+
+coef_final <- data.frame("fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
+                         "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
+                         "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
+                         "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
+                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
+                         "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
+                         "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)))
+
+data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+
+
 
 

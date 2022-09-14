@@ -567,3 +567,66 @@ df <- ucs %>%
 df <- df[complete.cases(df),]
 lmod <- lm(OutreachProportion ~., df)
 summary(lmod)
+
+
+## GAM ----
+
+gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5) + s(elevation, k=5)  + s(poverty, k=5) +  s(distance_to_cities, k=5) +
+                         s(Population, k=5) + s(child_population, k=5)  + s(population_density,k=5) )
+
+
+set.seed(0)
+
+coefs <- data.frame("fertility"=NA,"elevation"=NA, "poverty"=NA, "distance_to_cities"=NA, "Population"=NA, "child_population"=NA, "population_density"=NA)
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_raw = pentaTrain.raw[sample(1:nrow(pentaTrain.raw), nrow(pentaTrain.raw), replace = TRUE), ]
+  train.sd <- apply(sample_raw, 2, sd)
+  train.mean <- apply(sample_raw, 2, mean)
+  sample_d <- scale(sample_raw) %>%
+    as.data.frame()
+  
+  pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
+  
+  gam.mod <- gam(gam.form, data = sample_d, method = "REML") 
+  
+  raw_pred = predict(gam.mod,pentaTest)
+  preds <- raw_pred*train.sd[8]+train.mean[8]
+  rmse <- rmse(pentaTest.raw[,8],preds)
+  r2 <- R2(pentaTest.raw[,8],preds)
+  mae <- MAE(pentaTest.raw[8],preds)
+  
+  
+  ## fill in the blank list
+  
+  clinic_gam_summary <- summary(gam.mod$finalModel)
+  clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
+  clinic_gam_cfs  <- as.data.frame(t(clinic_gam_cfs))
+  names(clinic_gam_cfs) <- c("fertility","elevation" ,"poverty","distance_to_cities", "Population","child_population","population_density")
+  
+  coefs <- rbind(coefs, clinic_gam_cfs)
+  
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+  
+  print(i)
+}
+
+coefs <- coefs[-1,]
+
+coef_clean <- coefs[is.finite(rowSums(coefs)),]
+coef_final <- data.frame( "fertility"=c(mean(coef_clean$fertility),std_mean(coef_clean$fertility)), 
+                          "elevation"=c(mean(coef_clean$elevation),std_mean(coef_clean$elevation)), 
+                          "poverty"=c(mean(coef_clean$poverty), std_mean(coef_clean$poverty)),
+                          "distance_to_cities"=c(mean(coef_clean$distance_to_cities),std_mean(coef_clean$distance_to_cities)), 
+                          "Population"=c(mean(coef_clean$Population), std_mean(coef_clean$Population)), 
+                          "child_population"=c(mean(coef_clean$child_population), std_mean(coef_clean$child_population)),
+                          "population_density"=c(mean(coef_clean$population_density), std_mean(coef_clean$population_density)))
+
+
+mod_clean <- mod_performance[is.finite(rowSums(coefs)),]
+data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+
