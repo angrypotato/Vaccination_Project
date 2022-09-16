@@ -6,7 +6,7 @@ source(file='PreRunNew.r')
 
 ## Tehsil level ----
 
-tehsils <- read.csv("results/tehsils_complete_8.15.csv")
+tehsils <- read.csv("results/tehsils_complete_9.15.csv")
 
 tehsils.plot <- tehsils[-c(24,25,31,61,113), c(28,27,26,4:18,20,22,30,25)] %>%
   rename("Outreach Proportion" = OutreachProportion,
@@ -30,7 +30,7 @@ tehsils.cor <- cor(tehsils.plot[complete.cases(tehsils.plot),], method = c("pear
 
 library(corrplot)
 corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
-
+## exported with width & height 2000
 
 
 
@@ -54,15 +54,15 @@ summary(lm(TotalClinicsCoverage ~ ., ucs.plot[,-c(2,3)]))
 ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features 
   as.data.frame() %>%
   na.omit() %>%
-  dplyr::select(10:8,3,6,1,2,4) %>%
+  dplyr::select(10:8,3,6,1,4,2) %>%
   rename("Outreach Proportion" = OutreachProportion,"Clinic Vacc Covereage"= TotalClinicsCoverage, "Outreach Vacc Coverage" =TotalOutreachCoverage, 
          "Fertility" = fertility, "Child Population"=child_population, "Distance to Cities"=distance_to_cities, "Poverty"=poverty,"Elevation"=elevation)
   
 
 ucs.cor <- cor(ucs.plot, method = c("pearson"))
 
-corrplot(ucs.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
-
+corrplot(ucs.cor, tl.col = "black", tl.cex = 2.2, tl.srt = 45, cl.cex =2.2)
+## exported with width & height 2000
 
 
 
@@ -93,19 +93,19 @@ punjab.map <- merge(punjab.polygon, tehsils.map[,c(2,24:28)], by = "TEHSIL", all
 # class(punjab.map)
 
 my_theme <- theme(legend.position = c(0.9, 0.2),
-                  legend.title = element_text(colour="black", size=24, face="bold"),
-                  legend.text=element_text(size=20),
-                  legend.key.size = unit(1.3, 'cm'))
+                  legend.title = element_text(colour="black", size=48, face="bold"),
+                  legend.text=element_text(size=40),
+                  legend.key.size = unit(3, 'cm'))
 
 fac_num <- ggplot(punjab.map) + 
   geom_sf(aes(fill=fac_number)) +
   scale_fill_gradient(name = "Number of\nClinics", low="lightgreen", high="darkgreen") +
   my_theme 
 
-clinics <- ggplot(punjab.map) + 
-  geom_sf(aes(fill=clinic_per_child)) +
-  scale_fill_gradient(name = "Clinic per\nchild capita", low="lightgreen", high="darkgreen") +
-  my_theme
+in_clinic <- ggplot(punjab.map) + 
+  geom_sf(aes(fill=TotalClinicsCoverage)) +
+  scale_fill_gradient(name = "In-clinic vacc per\nchild capita", low="lightgreen", high="darkgreen", breaks = seq(0,0.2,0.05)) +
+  my_theme 
 
 outreach <- ggplot(punjab.map) + 
   geom_sf(aes(fill=TotalOutreachCoverage)) +
@@ -117,10 +117,8 @@ proportion <- ggplot(punjab.map) +
   scale_fill_gradient(name = "Outreach\nProportion", low="lightgreen", high="darkgreen") +
   my_theme
 
-in_clinic <- ggplot(punjab.map) + 
-  geom_sf(aes(fill=TotalClinicsCoverage)) +
-  scale_fill_gradient(name = "In-clinic vacc per\nchild capita", low="lightgreen", high="darkgreen", breaks = seq(0,0.2,0.05)) +
-  my_theme 
+## 2000
+
 
 ### map on the upper left
 pak <- getData("GADM", country="PK", level=1)
@@ -129,27 +127,28 @@ pak.province <- fortify(pak, region = "NAME_1") %>%
 pak.province[which(pak.province$id == "Punjab"),]$punjab <- 1
 theme_set(theme_void())
 pak <- ggplot(pak.province, aes(x = long, y = lat, group = group)) + 
-  geom_polygon(aes(color = as.factor(punjab), fill = as.factor(punjab)), size = 0.8) +
+  geom_polygon(aes(color = as.factor(punjab), fill = as.factor(punjab)), size = 1.5) +
   scale_color_manual(values = c('1' = 'red', '0' = "Black")) +
   scale_fill_manual(values =  c('1' = 'white', '0' = "white")) +
   theme(legend.position = "none")
+##2000
 
 
 ### scatter plot
-# tehsils <- read.csv("results/tehsils_complete_7.19.csv")
+# tehsils <- read.csv("results/tehsils_complete_9.15.csv")
 tehsils.scatter <- tehsils[order(tehsils$OutreachProportion, decreasing = T),] %>%
   mutate(Tehsil = as.numeric(1:137))
 
 theme_set(theme_classic())
 e <- ggplot(tehsils.scatter, aes(x=Tehsil, y= OutreachProportion)) +
-  geom_point(size=2.5, shape=1) +
+  geom_point(size=7, shape=1) +
   scale_x_continuous(breaks = seq(from = 0, to = 140, by = 20)) +
   scale_y_continuous(breaks = seq(from = 0.5, to = 1, by = 0.1)) +
   xlab("Tehsil (index)") + 
   ylab("Outreach/all vaccination ratio") +
-  theme(axis.title = element_text(size = 20,color = "black", face="bold"),
-        axis.text = element_text(size = 18))
-  
+  theme(axis.title = element_text(size = 45,color = "black", face="bold"),
+        axis.text = element_text(size =40))
+## 1500
 
 
  ## combine plots ---- 
