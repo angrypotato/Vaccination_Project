@@ -632,7 +632,9 @@ clean_df_buffer <- function(fl){
   vaccs_data <- vaccs_data[complete.cases(vaccs_data$TEHSIL),] 
   vaccs_data$TEHSIL <- sapply(vaccs_data$TEHSIL,solve_name)
   vaccs_data <- vaccs_data[!(vaccs_data$TEHSIL %in% c('RAZMAK')),] 
-  vaccs_data[which(vaccs_data$TEHSIL == "SAHIWAL" & vaccs_data$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL"
+  if (length(which(vaccs_data$TEHSIL == "SAHIWAL" & vaccs_data$DISTRICT == "SAHIWAL")) > 0) {
+    vaccs_data[which(vaccs_data$TEHSIL == "SAHIWAL" & vaccs_data$DISTRICT == "SAHIWAL"),]$TEHSIL <- "SAHIWAL_SAHIWAL" 
+  }
   
   vaccs_data
 }
