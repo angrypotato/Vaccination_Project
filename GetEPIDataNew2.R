@@ -37,7 +37,6 @@ non_epi_files_19 <- list.files(path = "VaccinationStudy/Data/E-Vaccs Data/2019/N
 epi_files <- c(epi_files_17,non_epi_files_17,epi_files_18,non_epi_files_18,
                epi_files_19,non_epi_files_19)
 
-# epi_files <- epi_files[-c(1:7,13:19)]
 
 # Read in Data Regarding Punjab Clinics - the goal is to differentiate between vaccinations given at clinics vs those done via outreach
 
@@ -376,6 +375,8 @@ write.csv(tehsils, "results/tehsils_complete_7.15.csv")
 
 
 ## 2017
+
+# epi_files <- epi_files[-c(1:7,13:19)]
 epi_17 <- epi_files[1:10]
 tehsils_17 <- tehsils
 
@@ -650,3 +651,120 @@ buffer_15 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_c
 buffer_10 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
 buffer_20 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
 buffer_25 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
+
+
+
+# 2017 by month ----
+
+jan_17 <- epi_files[c(1,13)]
+feb_17 <- epi_files[c(2,14)]
+mar_17 <- epi_files[c(3,15)]
+apr_17 <- epi_files[c(4,16)]
+may_17 <- epi_files[c(5,17)]
+jun_17 <- epi_files[c(6,18)]
+jul_17 <- epi_files[c(7,19)]
+
+aug_17 <- epi_files[c(8,20)]
+sep_17 <- epi_files[c(9,21)]
+oct_17 <- epi_files[c(10,22)]
+nov_17 <- epi_files[c(11,23)]
+dec_17 <- epi_files[c(12,24)]
+
+jan_17_outcome <- tehsils
+feb_17_outcome <- tehsils
+mar_17_outcome <- tehsils
+apr_17_outcome <- tehsils
+may_17_outcome <- tehsils
+jun_17_outcome <- tehsils
+jul_17_outcome <- tehsils
+
+aug_17_outcome <- tehsils
+sep_17_outcome <- tehsils
+oct_17_outcome <- tehsils
+nov_17_outcome <- tehsils
+dec_17_outcome <- tehsils
+
+
+for(file in 1:length(jul_17)){
+  f <- clean_df(jul_17[file])
+  f$Vaccination <- tolower(f$Vaccination)
+  
+  f$has_penta3 <- 0
+  f$has_penta3 <- ifelse(grepl("pentavalent-3", tolower(f$Vaccination)),1,0)
+  tot.instance.penta3 <- tot.instance.penta3 + sum(f$has_penta3)  # global index
+  
+  in_clinics <- jul_17_outcome$penta3_in_clinic   # local index recording data before running this file
+  
+  ### in clinic 
+  for(fa in 1:NROW(facilities)){
+    fac <- facilities[fa,]
+    name <- fac$facility_name
+    
+    # filter obs in the facility radius
+    clinic_f <- f[which(f$long >= fac$longitude_low & f$long <= fac$longitude_high
+                        & f$lat <= fac$latitude_high & f$lat >= fac$latitude_low),]
+    
+    num_clinic <- NROW(clinic_f)
+    if (num_clinic >0) {
+      facilities[which(facilities$facility_name == name),]$in_clinic <- facilities[(facilities$facility_name == name),]$in_clinic + num_clinic
+      
+      num_teh <- length(unique(clinic_f$TEHSIL))   # for different tehsils in the clinic range
+      for (t in 1:num_teh) {
+        tehs <- unique(clinic_f$TEHSIL)[t]
+        
+        instance.penta3 <- sum(clinic_f[which(clinic_f$TEHSIL == tehs),]$has_penta3)  
+        # instance of inclinic_penta3 in each tehsil
+        
+        jul_17_outcome[(jul_17_outcome$TEHSIL == tehs),]$penta3_in_clinic <- jul_17_outcome[(jul_17_outcome$TEHSIL == tehs),]$penta3_in_clinic + instance.penta3
+        facilities[(facilities$facility_name == name),]$penta3 <- facilities[(facilities$facility_name == name),]$penta3 + instance.penta3
+      }
+    }  
+  }
+  
+  # outreach
+  for(k in 1:NROW(jul_17_outcome)) { 
+    tehs <- jul_17_outcome$TEHSIL[k]
+    if(is.na(tehs)){
+      next
+    }
+    
+    ftable <- f[which((f$TEHSIL == tehs) & (f$has_penta3 == 1)),]
+    fpenta3<- sum(ftable$has_penta3)
+    ### in_clinic obs in this file of this tehsil
+    penta3_out <- fpenta3 - (jul_17_outcome[(jul_17_outcome$TEHSIL == tehs),]$penta3_in_clinic - in_clinics[k])
+    
+    jul_17_outcome[which(jul_17_outcome$TEHSIL == tehs),]$penta3_out_clinic <- jul_17_outcome[(jul_17_outcome$TEHSIL == tehs),]$penta3_out_clinic + penta3_out
+  }
+  print(file)
+} 
+
+mos_17 <- data.frame(month = c("jan","feb","mar", "apr","may","jun", "jul","aug","sep","oct","nov","dec"),
+                     in_clinic = NA,
+                     outreach = NA)
+mos_17[1,c(2:4)] <- c(sum(jan_17_outcome$penta3_in_clinic),sum(jan_17_outcome$penta3_out_clinic))
+mos_17[2,c(2:4)] <- c(sum(feb_17_outcome$penta3_in_clinic),sum(feb_17_outcome$penta3_out_clinic))
+mos_17[3,c(2:4)] <- c(sum(mar_17_outcome$penta3_in_clinic),sum(mar_17_outcome$penta3_out_clinic))
+mos_17[4,c(2:4)] <- c(sum(apr_17_outcome$penta3_in_clinic),sum(apr_17_outcome$penta3_out_clinic))
+mos_17[5,c(2:4)] <- c(sum(may_17_outcome$penta3_in_clinic),sum(may_17_outcome$penta3_out_clinic))
+mos_17[6,c(2:4)] <- c(sum(jun_17_outcome$penta3_in_clinic),sum(jun_17_outcome$penta3_out_clinic))
+mos_17[7,c(2:4)] <- c(sum(jul_17_outcome$penta3_in_clinic),sum(jul_17_outcome$penta3_out_clinic))
+mos_17[8,c(2:4)] <- c(sum(aug_17_outcome$penta3_in_clinic),sum(aug_17_outcome$penta3_out_clinic))
+mos_17[9,c(2:4)] <- c(sum(sep_17_outcome$penta3_in_clinic),sum(sep_17_outcome$penta3_out_clinic))
+mos_17[10,c(2:4)] <- c(sum(oct_17_outcome$penta3_in_clinic),sum(oct_17_outcome$penta3_out_clinic))
+mos_17[11,c(2:4)] <- c(sum(nov_17_outcome$penta3_in_clinic),sum(nov_17_outcome$penta3_out_clinic))
+mos_17[12,c(2:4)] <- c(sum(dec_17_outcome$penta3_in_clinic),sum(dec_17_outcome$penta3_out_clinic))
+
+mos_17 <- mos_17 %>%
+  mutate(proportion = outreach/(outreach+in_clinic),
+         total = in_clinic+outreach)
+
+
+## merge outcome (sep 17 - 19) and covar ----
+
+tehsils_complete_8.15 <- read.csv("results/tehsils_complete_8.15.csv")
+tehsils_proportion <- read.csv("results/proportion_9.15.csv")[, c(5,13)] 
+tehsils_complete_9.15 <- merge(tehsils_complete_8.15, tehsils_proportion, by = c("TEHSIL"), all.x = T) %>%
+  mutate(OutreachProportion = proportion)
+
+tehsils_complete_9.15 <- tehsils_complete_9.15[,-c(2,31)]
+write.csv(tehsils_complete_9.15, "results/tehsils_complete_9.15.csv")
