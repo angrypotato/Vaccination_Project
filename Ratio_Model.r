@@ -167,18 +167,17 @@ coefs <- coefs[-1,]
 coef_final <- data.frame("fertility"=c(mean(coefs$fertility),std_mean(coefs$fertility)),
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)),
                          "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)),
+                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)),
                          "Population"=c(mean(coefs$Population), std_mean(coefs$Population)),
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)),
-                         "population_density"=c(mean(coefs$population_density),std_mean(coefs$population_density)),  
                          "radio"=c(mean(coefs$radio),std_mean(coefs$radio)),  
                          "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
-                         "television"=c(mean(coefs$television), std_mean(coefs$television)),
                          "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
                          "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
 
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
-
+View(t(coef_final))
 
 
 
