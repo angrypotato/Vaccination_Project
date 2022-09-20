@@ -26,7 +26,7 @@ test_scale <- function(raw_test, train.mean, train.sd) {
 ### Take the existing Tehsil level data with covariates and Vaccination ratios and parse out the 
 ### covariates from the Y (Clinic Vaccination Coverage)
 
-# tehsils <- read.csv("results/tehsils_complete_8.15.csv")
+# tehsils <- read.csv("results/tehsils_complete_9.15.csv")
 tehsils.clinic <- tehsils[,c(4:18,20,22,25,30,28)]
 
 tehsils.clinic <- tehsils.clinic[complete.cases(tehsils.clinic), ]  

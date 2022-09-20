@@ -42,12 +42,12 @@ epi_files <- c(epi_files_17,non_epi_files_17,epi_files_18,non_epi_files_18,
 
 facilities <- readxl::read_xls('VaccinationStudy/Data/Facilities_location.xls')
 
-## 200m buffer (approximately)
+## 350m buffer (approximately)
 
-facilities$latitude_high <- facilities$latitude + .0015
-facilities$latitude_low <- facilities$latitude - .0015
-facilities$longitude_high <- facilities$longitude + .0015
-facilities$longitude_low <- facilities$longitude - .0015
+facilities$latitude_high <- facilities$latitude + 0.0012
+facilities$latitude_low <- facilities$latitude - 0.0012
+facilities$longitude_high <- facilities$longitude + 0.0012
+facilities$longitude_low <- facilities$longitude - 0.0012
 
 
 # Prepare the variables to be filled in via the EPI Files
@@ -376,8 +376,8 @@ write.csv(tehsils, "results/tehsils_complete_7.15.csv")
 
 ## 2017
 
-# epi_files <- epi_files[-c(1:7,13:19)]
-epi_17 <- epi_files[1:10]
+# epi_files <- epi_files[-c(1:8,13:20)]
+epi_17 <- epi_files[1:8]
 tehsils_17 <- tehsils
 
 for(file in 1:length(epi_17)){
@@ -433,7 +433,7 @@ for(file in 1:length(epi_17)){
   print(file)
 } 
 
-write.csv(tehsils_17, "results/tehsil_vacc_17_new.csv")
+write.csv(tehsils_17, "results/tehsil_vacc_17_9.19.csv")
 
 
 ## 2018
@@ -494,7 +494,7 @@ for(file in 1:length(epi_18)){
   print(file)
 } 
 
-write.csv(tehsils_18, "results/tehsil_vacc_18.csv")
+write.csv(tehsils_18, "results/tehsil_vacc_18_9.19.csv")
 
 
 
@@ -556,7 +556,7 @@ for(file in 1:length(epi_19)){
   print(file)
 } 
 
-write.csv(tehsils_19, "results/tehsil_vacc_19.csv")
+write.csv(tehsils_19, "results/tehsil_vacc_19_9.19.csv")
 
 
 sum(tehsils_17$penta3_in_clinic)
@@ -640,10 +640,10 @@ clean_df_buffer <- function(fl){
 }
 
 
-facilities$latitude_high <- facilities$latitude + .001
-facilities$latitude_low <- facilities$latitude - .001
-facilities$longitude_high <- facilities$longitude + .001
-facilities$longitude_low <- facilities$longitude - .001
+facilities$latitude_high <- facilities$latitude + 0.00045
+facilities$latitude_low <- facilities$latitude - 0.00045
+facilities$longitude_high <- facilities$longitude + 0.00045
+facilities$longitude_low <- facilities$longitude - 0.00045
 
 facilities$penta3 <- 0
 facilities$TEHSIL <- ""
@@ -714,11 +714,14 @@ for(file in 1:length(epi_test)){
 } 
 
 
-buffer_10 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
+buffer_05 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
 buffer_15 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
-buffer_20 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
+buffer_020 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
 buffer_25 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic))
-
+buffer_045 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic), 
+               sum(tehsils_test$penta3_out_clinic)/(sum(tehsils_test$penta3_out_clinic)+sum(tehsils_test$penta3_in_clinic)))
+buffer_95 <- c(sum(tehsils_test$penta3_in_clinic), sum(tehsils_test$penta3_out_clinic), 
+               sum(tehsils_test$penta3_out_clinic)/(sum(tehsils_test$penta3_out_clinic)+sum(tehsils_test$penta3_in_clinic)))
 
 
 # 2017 by month ----
