@@ -31,8 +31,8 @@ test_scale <- function(raw_test, train.mean, train.sd) {
 ### covariates from the Y (Outreach/Clinic Vaccination Ratio)
 
 
-# tehsils <- read.csv("results/tehsils_complete_9.15.csv")
-tehsils.ratio <- tehsils[,c(4:18,20,22,25,30,26)] 
+# tehsils <- read.csv("results/tehsils_complete_buffer45_9.27.csv")
+tehsils.ratio <- tehsils[,c(3:17,19,21:23,26)] 
 
 tehsils.ratio <- tehsils.ratio[complete.cases(tehsils.ratio), ]
 
@@ -84,7 +84,7 @@ outreach_df <- attStats(boruta_output)
 ### Those covariates that were determined 
 ### as confirmed or tentatively significant by the Boruta Models along with those that 
 ### were deemed as signfiicant by the RFE featire selection should be those included in modeling
-### c(1:4,7:11,15,16)
+### c(1:3,8:11,13,15,16)
 
 ## GBM ----
 
@@ -92,7 +92,7 @@ outreach_df <- attStats(boruta_output)
 
 ratio.step <- gbm.step(
   data=pentaTrain, 
-  gbm.x = c(1:4,7,8,10,11,15,16),
+  gbm.x = c(1:3,8:11,13,15,16),
   gbm.y = 20,
   family = "gaussian",
   tree.complexity = 2,
@@ -103,6 +103,7 @@ ratio.step <- gbm.step(
 
 gbm_pred = predict(ratio.step,pentaTrain)
 R2(pentaTrain[,20],gbm_pred)
+adj.r2(R2(pentaTrain[,20],gbm_pred),96,10)
 
 gbm_cfs <- summary(ratio.step)
 gbm_cfs <- cbind(data.frame(gbm_cfs[,1]),data.frame(gbm_cfs[,2]))
@@ -113,8 +114,8 @@ xtable(data.frame(gbm_cfs))
 ### SE ----
 set.seed(0)
 
-coefs <- data.frame("fertility"=NA, "elevation"=NA, "poverty"=NA, "night_lights"=NA, "Population"=NA,
-                    "child_population"=NA,  "radio"=NA, "electricity"=NA,"antenatal_care"=NA,
+coefs <- data.frame("fertility"=NA, "elevation"=NA, "poverty"=NA, 
+                    "child_population"=NA, "population_density"=NA, "radio"=NA, "electricity"=NA,"mobile_phone"=NA,"antenatal_care"=NA,
                     "mothers_age"=NA)
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
@@ -130,7 +131,7 @@ for (i in 1:1000) {
   
   ratio.step <- gbm.step(
     data=sample_d, 
-    gbm.x =  c(1:4,7,8,10,11,15,16),   # selected features 
+    gbm.x =  c(1:3,8:11,13,15,16),   # selected features 
     gbm.y = 20,
     family = "gaussian",
     tree.complexity = 2,
@@ -167,11 +168,11 @@ coefs <- coefs[-1,]
 coef_final <- data.frame("fertility"=c(mean(coefs$fertility),std_mean(coefs$fertility)),
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)),
                          "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)),
-                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)),
-                         "Population"=c(mean(coefs$Population), std_mean(coefs$Population)),
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)),
+                         "population_density"=c(mean(coefs$population_density),std_mean(coefs$population_density)),  
                          "radio"=c(mean(coefs$radio),std_mean(coefs$radio)),  
                          "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
+                         "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
                          "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
                          "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
 
@@ -186,14 +187,14 @@ View(t(coef_final))
 
 ### feature pruning ----
 
-gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5) + s(elevation, k=5)  + s(poverty, k=5) + s(night_lights, k=5) +
-                         s(Population, k=5) + s(child_population, k=5)  + s(population_density,k=5) +
-                         s(radio, k=5) + s(electricity, k=5) + s(antenatal_care, k=5) + s(mothers_age, k=5) )
+gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5)   + s(poverty, k=5)  + 
+                         s(population_density,k=5) +s(radio, k=5) + s(electricity, k=5)  + s(antenatal_care, k=5) + s(mothers_age, k=5) )
 
 ratio_gam_model <- gam(gam.form, data = pentaTrain, method = "REML") 
 
 ratio_gam_preds <- predict(ratio_gam_model)
 R2(pentaTrain[,20],ratio_gam_preds)
+adj.r2(R2(pentaTrain[,20],ratio_gam_preds),96,7)
 
 ratio_gam_summary <- summary(ratio_gam_model)
 ratio_gam_cfs <- -log10(as.data.frame(ratio_gam_summary$s.table)['p-value'])
@@ -203,7 +204,7 @@ xtable(data.frame(ratio_gam_cfs))
 ### SE ----
 set.seed(0)
 
-coefs <- data.frame("fertility"=NA,"elevation"=NA, "poverty"=NA,"night_lights"=NA, "Population"=NA, "child_population"=NA, "population_density"=NA, 
+coefs <- data.frame("fertility"=NA, "poverty"=NA, "population_density"=NA, 
                     "radio"=NA,  "electricity"=NA, "antenatal_care"=NA, "mothers_age"=NA)
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
@@ -231,7 +232,8 @@ for (i in 1:1000) {
   clinic_gam_summary <- summary(gam.mod$finalModel)
   clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
   clinic_gam_cfs  <- as.data.frame(t(clinic_gam_cfs))
-  names(clinic_gam_cfs) <- c("fertility","elevation" ,"poverty","night_lights","Population","child_population","population_density", "radio",  "electricity", "antenatal_care","mothers_age")
+  names(clinic_gam_cfs) <- c("fertility","poverty","population_density", 
+                             "radio",  "electricity", "antenatal_care","mothers_age")
   
   coefs <- rbind(coefs, clinic_gam_cfs)
   
@@ -246,11 +248,7 @@ coefs <- coefs[-1,]
 
 coef_clean <- coefs[is.finite(rowSums(coefs)),]
 coef_final <- data.frame( "fertility"=c(mean(coef_clean$fertility),std_mean(coef_clean$fertility)), 
-                          "elevation"=c(mean(coef_clean$elevation),std_mean(coef_clean$elevation)), 
                           "poverty"=c(mean(coef_clean$poverty), std_mean(coef_clean$poverty)),
-                          "night_lights"=c(mean(coef_clean$night_lights), std_mean(coef_clean$night_lights)), 
-                          "Population"=c(mean(coef_clean$Population), std_mean(coef_clean$Population)), 
-                          "child_population"=c(mean(coef_clean$child_population), std_mean(coef_clean$child_population)),
                           "population_density"=c(mean(coef_clean$population_density), std_mean(coef_clean$population_density)), 
                           "radio"=c(mean(coef_clean$radio),std_mean(coef_clean$radio)),  
                           "electricity"=c(mean(coef_clean$electricity), std_mean(coef_clean$electricity)),
@@ -272,27 +270,27 @@ View(t(coef_final))
 ### feature pruning ----
 
 y <- pentaTrain$OutreachProportion
-x <- data.matrix(pentaTrain[, c(1:4,8:11,15,16)])
+x <- data.matrix(pentaTrain[, c(1:4,8:11,13,15,16)])
 
 ridge_model <- cv.glmnet(x, y, alpha = 0, standardize = F)
 
 best_lambda <- ridge_model$lambda.min
 
 best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda, standardize = F)
-ridge_outcome <- coef(best_model)
-View(data.frame(ridge_outcome@Dimnames[[1]], ridge_outcome@x))
-View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
 
-ratio_ridge_preds <- predict(best_model, newx=data.matrix(pentaTrain[,c(1:4,8:11,15,16)]))
+ratio_ridge_preds <- predict(best_model, newx=data.matrix(pentaTrain[,c(1:4,8:11,13,15,16)]))
 R2(pentaTrain[,20],ratio_ridge_preds)
+adj.r2(R2(pentaTrain[,20],ratio_ridge_preds),96,11)
 
+ridge_outcome <- coef(best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
 
 #### SE ----
 set.seed(0)
 
 coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000),  "elevation"=rep(0, 1000),  "poverty"=rep(0, 1000), "night_lights"=rep(0, 1000),
                      "child_population"=rep(0, 1000), "population_density"=rep(0, 1000), "radio"=rep(0, 1000), "electricity"=rep(0, 1000), 
-                    "antenatal_care"=rep(0, 1000),"mothers_age"=rep(0, 1000))
+                    "mobile_phone"=rep(0, 1000),"antenatal_care"=rep(0, 1000),"mothers_age"=rep(0, 1000))
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
@@ -306,7 +304,7 @@ for (i in 1:1000) {
   pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
   
   y <- sample_d$OutreachProportion
-  x <- data.matrix(sample_d[, c(1:4,8:11,15,16)])
+  x <- data.matrix(sample_d[, c(1:4,8:11,13,15,16)])
   
   ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
   
@@ -315,7 +313,7 @@ for (i in 1:1000) {
   ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
   ridge_outcome <- coef(ridge_best_model)
   
-  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1:4,8:11,15,16)]))
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1:4,8:11,13,15,16)]))
   preds <- raw_preds*train.sd[20]+train.mean[20]
   rmse <- rmse(pentaTest.raw[,20],preds)
   r2 <- R2(pentaTest.raw[,20],preds)
@@ -337,7 +335,8 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
                          "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)),
                          "radio"=c(mean(coefs$radio), std_mean(coefs$radio)), 
-                         "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)), 
+                         "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
+                         "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
                          "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
                          "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
 

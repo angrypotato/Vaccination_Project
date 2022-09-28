@@ -852,20 +852,34 @@ mos_17 <- mos_17 %>%
          total = in_clinic+outreach)
 
 
-## merge outcome (sep 17 - 19) and covar ----
+## sep 27 merge outcome (sep 17 - 19) and covar ----
 
-tehsils_complete_9.15 <- read.csv("results/tehsils_complete_9.15.csv")
-tehsils_proportion <- read.csv("results/proportion_9.15.csv")[, c(5,13)] 
-tehsils_complete_9.15 <- merge(tehsils_complete_8.15, tehsils_proportion, by = c("TEHSIL"), all.x = T) %>%
-  mutate(OutreachProportion = proportion)
+### buffer12
+tehsils_covar <- read.csv("results/tehsils_complete_9.15.csv")[,-c(23,24,26:28)]
+tehsils_outcome <- read.csv("results/tehsil_vacc_buffer12.csv")[, c(5,11,12)]
 
-tehsils_complete_9.15 <- tehsils_complete_9.15[,-c(2,31)]
-write.csv(tehsils_complete_9.15, "results/tehsils_complete_9.15.csv")
+tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("TEHSIL"), all.x = T) %>%
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
+         TotalOutreachCoverage = penta3_out_clinic / child_population,
+         TotalClinicsCoverage = penta3_in_clinic / child_population)
+
+tehsils_complete_9.27 <- tehsils_complete[,-c(2,3,24)]
+write.csv(tehsils_complete_9.27, "results/tehsils_complete_buffer12_9.27.csv")
 
 
+### buffer45
+tehsils_covar <- read.csv("results/tehsils_complete_9.15.csv")[,-c(23,24,26:28)]
+tehsils_outcome <- read.csv("results/tehsil_vacc_buffer45.csv")[, c(5,11,12)]
+
+tehsils_complete <- merge(tehsils_covar, tehsils_outcome, by = c("TEHSIL"), all.x = T) %>%
+  mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic+penta3_out_clinic),
+         TotalOutreachCoverage = penta3_out_clinic / child_population,
+         TotalClinicsCoverage = penta3_in_clinic / child_population)
+
+tehsils_complete_9.27 <- tehsils_complete[,-c(2,3,24)]
+write.csv(tehsils_complete_9.27, "results/tehsils_complete_buffer45_9.27.csv")
 
 
-
-
+### UC
 
 
