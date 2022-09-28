@@ -326,13 +326,16 @@ write.csv(uc_19,"results/uc_vacc_buffer45_19.csv")
 
 
 # merge outcome and covariates ----
-ucs_outcome <- read.csv("results/ucs_vacc.csv")[,c(3:5,22,23)] # outcome variable
-ucs_covar <- read.csv("results/ucs_covariates.csv")  # covariates
+ucs_outcome <- read.csv("results/uc_vacc_buffer45.csv")[,c(3:5,22,23)] # outcome variable
+ucs_covar <- read.csv("results/uc_complete_clean.csv")[,-c(12:14)]  # covariates
 ucs_complete <- merge(ucs_covar, ucs_outcome, by = c("UC", "DISTRICT","TEHSIL"), all.x = T) %>%
   mutate(OutreachProportion = penta3_out_clinic / (penta3_in_clinic + penta3_out_clinic),
          TotalOutreachCoverage = penta3_out_clinic / child_population,  
          TotalClinicsCoverage = penta3_in_clinic / child_population)
-# write.csv(ucs_complete, "results/ucs_complete.csv")
+
+ucs_complete_clean <- ucs_complete[complete.cases(ucs_complete),] %>%
+  distinct()
+write.csv(ucs_complete_clean, "results/uc_complete_buffer45.csv")
 
 tehsils_covar <- read.csv("results/tehsils_covar.csv")
 tehsils_outcome <- read.csv("results/tehsils_vacc.csv")[, c(4,5,12,14)] 
@@ -880,6 +883,5 @@ tehsils_complete_9.27 <- tehsils_complete[,-c(2,3,24)]
 write.csv(tehsils_complete_9.27, "results/tehsils_complete_buffer45_9.27.csv")
 
 
-### UC
 
 
