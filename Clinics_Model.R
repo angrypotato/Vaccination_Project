@@ -386,8 +386,8 @@ summary(lmod)
 
 # FOR UC ----
 
-# ucs <- read.csv("results/uc_complete_clean.csv")
-ucs <- ucs[, c(5:11,14)] %>%  # 7 features + last col outcome
+ucs <- read.csv("results/uc_complete_buffer45.csv")
+ucs <- ucs[, c(6:12,17)] %>%  # 7 features + last col outcome
   na.omit() 
 
 set.seed(10)
@@ -427,6 +427,10 @@ print(boruta_signif)  # significant variables
 
 plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xlab="Covariate", main="Variable Importance")  # plot variable importance
 outreach_df <- attStats(boruta_output)
+
+
+## chosen features
+## c(1,3,4)
 
 
 ## choose lambda for Ridge ----
@@ -481,4 +485,4 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
                          "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)))
 
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
-
+View(t(coef_final))

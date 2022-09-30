@@ -14,6 +14,7 @@ library(Boruta)
 library(mgcv)
 library(glmnet)
 std_mean <- function(x) sd(x)/sqrt(length(x))
+
 test_scale <- function(raw_test, train.mean, train.sd) {
   df <- raw_test
   for (n in 1:ncol(df)) {
@@ -21,6 +22,11 @@ test_scale <- function(raw_test, train.mean, train.sd) {
   }
   df
 }
+
+adj.r2 <- function(r2, n, p) {
+  1 - (1-r2)*(n-1)/(n-p-1)
+}
+
 
 
 # For Tehsil ----
@@ -270,7 +276,7 @@ View(t(coef_final))
 ### feature pruning ----
 
 y <- pentaTrain$OutreachProportion
-x <- data.matrix(pentaTrain[, c(1:4,8:11,13,15,16)])
+x <- data.matrix(pentaTrain[, c(2,3,8:10,13,15,16)])
 
 ridge_model <- cv.glmnet(x, y, alpha = 0, standardize = F)
 
@@ -278,7 +284,7 @@ best_lambda <- ridge_model$lambda.min
 
 best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda, standardize = F)
 
-ratio_ridge_preds <- predict(best_model, newx=data.matrix(pentaTrain[,c(1:4,8:11,13,15,16)]))
+ratio_ridge_preds <- predict(best_model, newx=data.matrix(pentaTrain[,c(2,3,8:10,13,15,16)]))
 R2(pentaTrain[,20],ratio_ridge_preds)
 adj.r2(R2(pentaTrain[,20],ratio_ridge_preds),96,11)
 
@@ -288,8 +294,8 @@ View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
 #### SE ----
 set.seed(0)
 
-coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000),  "elevation"=rep(0, 1000),  "poverty"=rep(0, 1000), "night_lights"=rep(0, 1000),
-                     "child_population"=rep(0, 1000), "population_density"=rep(0, 1000), "radio"=rep(0, 1000), "electricity"=rep(0, 1000), 
+coefs <- data.frame("Intercept"= rep(0, 1000),  "elevation"=rep(0, 1000),  "poverty"=rep(0, 1000), 
+                     "child_population"=rep(0, 1000), "population_density"=rep(0, 1000), "radio"=rep(0, 1000),  
                     "mobile_phone"=rep(0, 1000),"antenatal_care"=rep(0, 1000),"mothers_age"=rep(0, 1000))
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
@@ -304,7 +310,7 @@ for (i in 1:1000) {
   pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
   
   y <- sample_d$OutreachProportion
-  x <- data.matrix(sample_d[, c(1:4,8:11,13,15,16)])
+  x <- data.matrix(sample_d[, c(2,3,8:10,13,15,16)])
   
   ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
   
@@ -313,7 +319,7 @@ for (i in 1:1000) {
   ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
   ridge_outcome <- coef(ridge_best_model)
   
-  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(1:4,8:11,13,15,16)]))
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(2,3,8:10,13,15,16)]))
   preds <- raw_preds*train.sd[20]+train.mean[20]
   rmse <- rmse(pentaTest.raw[,20],preds)
   r2 <- R2(pentaTest.raw[,20],preds)
@@ -328,15 +334,12 @@ for (i in 1:1000) {
 
 
 coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
-                         "fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
                          "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
-                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)), 
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
                          "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)),
                          "radio"=c(mean(coefs$radio), std_mean(coefs$radio)), 
-                         "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
-                         "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
+                          "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
                          "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
                          "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
 
@@ -426,8 +429,8 @@ summary(lmod)
 
 # FOR UC ----
 
-ucs <- read.csv("results/uc_complete_clean.csv")
-ucs <- ucs[, c(5:12)] %>%  # 7 features + last col outcome
+ucs <- read.csv("results/uc_complete_buffer45.csv")
+ucs <- ucs[, c(6:12,15)] %>%  # 7 features + last col outcome
   na.omit() 
 
 set.seed(1)
@@ -542,7 +545,7 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
                          "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)))
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
-plot(coefs$population_density)
+View(t(coef_final))
 
 
 

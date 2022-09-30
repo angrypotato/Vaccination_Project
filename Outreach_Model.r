@@ -12,6 +12,18 @@ library(mgcv)
 library(glmnet)
 std_mean <- function(x) sd(x)/sqrt(length(x))
 
+test_scale <- function(raw_test, train.mean, train.sd) {
+  df <- raw_test
+  for (n in 1:ncol(df)) {
+    df[,n] <- (raw_test[,n] - train.mean[n])/train.sd[n]
+  }
+  df
+}
+
+adj.r2 <- function(r2, n, p) {
+  1 - (1-r2)*(n-1)/(n-p-1)
+}
+
 # Tehsil ----
 
 ### Split Data
@@ -415,16 +427,23 @@ outreach.step <- gbm.step(
 
 # FOR UC ----
 
-ucs <- read.csv("results/uc_complete_clean.csv")
-ucs <- ucs[, c(5:11, 13)] %>%  # 7 features + last col outcome
-  na.omit() %>%
-  scale() %>%
+ucs <- read.csv("results/uc_complete_buffer45.csv")
+ucs <- ucs[, c(6:12, 16)] %>%  # 7 features + last col outcome
+  na.omit()
+
+data_split <- sample.split(ucs, SplitRatio = 0.8)
+pentaTrain.raw <- subset(ucs, data_split == TRUE) 
+train.sd <- apply(pentaTrain.raw, 2, sd)
+train.mean <- apply(pentaTrain.raw, 2, mean)
+
+pentaTrain <- scale(pentaTrain.raw) %>%
   as.data.frame()
 
-set.seed(1)
-data_split = sample.split(ucs, SplitRatio = 0.8)
-pentaTrain <- subset(ucs, data_split == TRUE)
-pentaTest <-subset(ucs, data_split == FALSE)
+pentaTest.raw <-subset(ucs, data_split == FALSE) 
+
+pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
+
+
 
 ## Feature Selection ----
 
@@ -451,6 +470,9 @@ plot(boruta_output, cex = .5,cex.main = .7,font.axis=.3, cex.axis=.5, las=1, xla
 outreach_df <- attStats(boruta_output)
 
 
+## chosen features
+## c(1,2,5:7)
+
 
 
 ## ridge ----
@@ -461,7 +483,7 @@ lmod <- lm(TotalOutreachCoverage ~., data=pentaTrain)
 vif(lmod)
 
 y <- pentaTrain[, "TotalOutreachCoverage"]
-X <- data.matrix(pentaTrain[, c(1:7)])
+X <- data.matrix(pentaTrain[, c(1,2,5:7)])
 
 lambda <- c(0, 0.005, 0.01, 0.02, 0.04, 0.08, 1,5,10,20,22,23,24,25,30,40,50)
 lridge <- ridge(y,X, lambda=lambda)
@@ -469,6 +491,8 @@ coef(lridge)
 
 vridge <- vif(lridge)
 vridge
+
+# lambda = 23
 
 # plot VIFs
 pch <- c(15:18, 7, 9)
@@ -485,43 +509,49 @@ text(0.0, vridge[1,], colnames(vridge), pos=4)
 
 set.seed(0)
 
-coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000), "poverty"=rep(0, 1000), "distance_to_cities"=rep(0, 1000),
+coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000), 
                     "Population"=rep(0, 1000), "child_population"=rep(0, 1000), "population_density"=rep(0, 1000))
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
 for (i in 1:1000) {
-  sample_d = pentaTrain[sample(1:nrow(pentaTrain), nrow(pentaTrain), replace = TRUE), ]
+  sample_raw = pentaTrain.raw[sample(1:nrow(pentaTrain.raw), nrow(pentaTrain.raw), replace = TRUE), ]
+  train.sd <- apply(sample_raw, 2, sd)
+  train.mean <- apply(sample_raw, 2, mean)
+  sample_d <- scale(sample_raw) %>%
+    as.data.frame()
+  
+  pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
   
   y <- sample_d$TotalOutreachCoverage
-  x <- data.matrix(sample_d[, -8])
+  x <- data.matrix(sample_d[, c(2,3,5:7)])
   
-  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = 23)
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = 23, standardize = F)
   ridge_outcome <- coef(ridge_best_model)
   
-  preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-8]))
-  rmse <- rmse(pentaTest[,8],preds)
-  r2 <- R2(pentaTest[,8],preds)
-  mae <- MAE(pentaTest[,8],preds)
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,c(2,3,5:7)]))
+  preds <- raw_preds*train.sd[8]+train.mean[8]
+  rmse <- rmse(pentaTest.raw[,8],preds)
+  r2 <- R2(pentaTest.raw[,8],preds)
+  mae <- MAE(pentaTest.raw[,8],preds)
   
   ## fill in the blank list
   coefs[i,] <- ridge_outcome@x
   mod_performance[i,1] <- rmse
   mod_performance[i,2] <- r2
   mod_performance[i,3] <- mae
+  
 }
 
 coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
                          "fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)), 
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
-                         "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
-                         "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
                          "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
                          "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)))
 data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 
-plot(coefs$population_density)
+View(t(coef_final))
 
 
 
