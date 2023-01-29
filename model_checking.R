@@ -57,8 +57,8 @@ ratio.pentaTrain <- subset(tehsils.ratio, ratio_data_split == TRUE) %>%
 ## check df and homoscedasticity
 
 ### in clinic ----
-clinic.gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) +  s(night_lights, k=5) +
-                         s(distance_to_cities, k=5) +s(Population, k=5) + s(child_population, k=5) +  s(population_density, k=5) +
+clinic.gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5)  +  s(night_lights, k=5) +
+                         s(Population, k=5) + s(child_population, k=5) +  s(mobile_phone, k=5) +
                          s(radio, k=5)+ s(electricity, k=5)+ s(television, k=5)  + s(mothers_age, k=5))
 
 set.seed(0)
@@ -80,8 +80,8 @@ for (i in 1:5) {
 
 
 ### outreach ----
-outreach.gam.form <- as.formula(TotalOutreachCoverage ~ s(night_lights, k=5) + 
-                         s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + s(electricity, k=5)+ 
+outreach.gam.form <- as.formula(TotalOutreachCoverage ~ s(night_lights, k=5) + s(elevation, k=5) +
+                         s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + 
                          s(antenatal_care, k=5) + s(mothers_age, k=5))
 
 outreach_gam_model <- gam(outreach.gam.form, data = outreach.pentaTrain, method = "REML") 
@@ -101,9 +101,10 @@ for (i in 1:5) {
 
 
 ### ratio ----
-ratio.gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5)   + s(poverty, k=5)  + 
+ratio.gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5)   + s(poverty, k=5)  + s(elevation, k=5) +
                                s(population_density,k=5) +s(radio, k=5) + s(electricity, k=5)  + 
-                               s(antenatal_care, k=5) + s(mothers_age, k=5) )
+                               s(antenatal_care, k=5) + s(mothers_age, k=5) + s(child_population, k=5) +
+                               s(Population, k=5) + s(night_lights, k=5))
 
 ratio_gam_model <- gam(ratio.gam.form, data = ratio.pentaTrain, method = "REML") 
 gam.check(ratio_gam_model, k.rep = 500) 
@@ -124,7 +125,41 @@ for (i in 1:5) {
 ## Rigde ----
 
 ### in clinic ----
+clinic_y <- clinic.pentaTrain$TotalClinicsCoverage
+clinic_x <- data.matrix(clinic.pentaTrain[, c(10, 8, 12, 4, 1, 2, 11, 9, 7, 16, 3, 13)])
+
+clinic_ridge_model <- cv.glmnet(clinic_x, clinic_y, alpha = 0, standardize = F)
+
+clinic_best_lambda <- clinic_ridge_model$lambda.min
+
+clinic_best_model <- glmnet(clinic_x, clinic_y, alpha = 0, lambda = clinic_best_lambda, standardize = F)
+
+# assumption of linearity is not met
+par(mfrow =c(4,3))
+for (i in 1:12) {
+  plot(clinic_y ~ clinic_x[,i], )
+  title(main = colnames(clinic_x)[i])
+}
+
+
 
 ### outreach ----
+outreach_y <- outreach.pentaTrain$TotalOutreachCoverage
+outreach_x <- data.matrix(outreach.pentaTrain[, c(8,6,4,7,15,2,16)])
+
+par(mfrow =c(4,2))
+for (i in 1:7) {
+  plot(outreach_y ~ outreach_x[,i], )
+  title(main = colnames(outreach_x)[i])
+}
+
 
 ### ratio ----
+ratio_y <- ratio.pentaTrain$OutreachProportion
+ratio_x <- data.matrix(ratio.pentaTrain[, c(10,15,9,3,16,2,8,11,4,13,1)])
+
+par(mfrow =c(4,3))
+for (i in 1:11) {
+  plot(ratio_y ~ ratio_x[,i], )
+  title(main = colnames(ratio_x)[i])
+}
