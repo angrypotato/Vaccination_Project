@@ -65,6 +65,7 @@ set.seed(0)
 
 # using the whole train set
 clinic_gam_model <- gam(clinic.gam.form, data = clinic.pentaTrain, method = "REML") 
+par(mfrow = c(2, 2))
 gam.check(clinic_gam_model, k.rep = 500) 
 
 # using bootstrapped data, get low p-value
@@ -77,6 +78,29 @@ for (i in 1:5) {
 
   print(i)
 }
+
+# plotting the relationship
+summary(clinic_gam_model)
+model_matrix <- predict(clinic_gam_model, type = "lpmatrix")
+model_matrix
+plot(clinic.pentaTrain$TotalClinicsCoverage ~ clinic.pentaTrain$fertility)
+abline(h = 0)
+lines(clinic.pentaTrain$fertility, model_matrix[, "s(fertility).1"], type = "l", lty = 2)
+lines(clinic.pentaTrain$night_lights, model_matrix[, "s(night_lights).2"], type = "l", lty = 2)
+lines(clinic.pentaTrain$night_lights, model_matrix[, "s(night_lights).3"], type = "l", lty = 2)
+lines(clinic.pentaTrain$night_lights, model_matrix[, "s(night_lights).4"], type = "l", lty = 2)
+
+ggplot(clinic.pentaTrain, aes(fertility, TotalClinicsCoverage)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = clinic.pentaTrain$TotalClinicsCoverage ~ s(clinic.pentaTrain$fertility, k=5))
+
+par(mfrow = c(4,3))
+plot(clinic_gam_model)
+
+gam_pred <- predict(clinic_gam_model)
+ggplot(CO2_pred, aes(x = time)) +
+  geom_point(aes(y = co2), size = 1, alpha = 0.5) +
+  geom_line(aes(y = predicted_values), colour = "red")
 
 
 ### outreach ----
@@ -99,6 +123,12 @@ for (i in 1:5) {
   print(i)
 }
 
+# plot
+summary(outreach_gam_model)
+par(mfrow = c(4,2))
+plot(outreach_gam_model)
+
+
 
 ### ratio ----
 ratio.gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5)   + s(poverty, k=5)  + s(elevation, k=5) +
@@ -120,6 +150,12 @@ for (i in 1:5) {
   
   print(i)
 }
+
+# plot
+summary(ratio_gam_model)
+par(mfrow = c(4,3))
+plot(ratio_gam_model)
+
 
 
 ## Rigde ----
