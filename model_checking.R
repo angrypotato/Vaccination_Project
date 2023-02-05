@@ -57,9 +57,9 @@ ratio.pentaTrain <- subset(tehsils.ratio, ratio_data_split == TRUE) %>%
 ## check df and homoscedasticity
 
 ### in clinic ----
-clinic.gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5)  +  s(night_lights, k=5) +
-                         s(Population, k=5) + s(child_population, k=5) +  s(mobile_phone, k=5) +
-                         s(radio, k=5)+ s(electricity, k=5)+ s(television, k=5)  + s(mothers_age, k=5))
+clinic.gam.form <- as.formula(TotalClinicsCoverage ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) +  s(night_lights, k=5) +
+                         s(Population, k=5) + s(child_population, k=5) + s(population_density, k=5) +
+                         s(radio, k=5)+ s(electricity, k=5)+ s(television, k=5) + s(mobile_phone, k=5) + s(mothers_age, k=5))
 
 set.seed(0)
 
@@ -80,28 +80,15 @@ for (i in 1:5) {
 }
 
 # plotting the relationship
-summary(clinic_gam_model)
-model_matrix <- predict(clinic_gam_model, type = "lpmatrix")
-model_matrix
-plot(clinic.pentaTrain$TotalClinicsCoverage ~ clinic.pentaTrain$fertility)
-abline(h = 0)
-lines(clinic.pentaTrain$fertility, model_matrix[, "s(fertility).1"], type = "l", lty = 2)
-lines(clinic.pentaTrain$night_lights, model_matrix[, "s(night_lights).2"], type = "l", lty = 2)
-lines(clinic.pentaTrain$night_lights, model_matrix[, "s(night_lights).3"], type = "l", lty = 2)
-lines(clinic.pentaTrain$night_lights, model_matrix[, "s(night_lights).4"], type = "l", lty = 2)
-
-ggplot(clinic.pentaTrain, aes(fertility, TotalClinicsCoverage)) +
-  geom_point() +
-  geom_smooth(method = "gam", formula = clinic.pentaTrain$TotalClinicsCoverage ~ s(clinic.pentaTrain$fertility, k=5))
-
 par(mfrow = c(4,3))
-plot(clinic_gam_model)
+clinic_plot <-plot(clinic_gam_model)
 
-gam_pred <- predict(clinic_gam_model)
-ggplot(CO2_pred, aes(x = time)) +
-  geom_point(aes(y = co2), size = 1, alpha = 0.5) +
-  geom_line(aes(y = predicted_values), colour = "red")
-
+# poverty
+clinic_poverty <- clinic_plot[3][[1]]
+x <- clinic_poverty$x
+y <- clinic_poverty$fit # predicted output of s(poverty)
+plot(x, y)
+lm(y ~ x)
 
 ### outreach ----
 outreach.gam.form <- as.formula(TotalOutreachCoverage ~ s(night_lights, k=5) + s(elevation, k=5) +
@@ -131,12 +118,12 @@ plot(outreach_gam_model)
 
 
 ### ratio ----
-ratio.gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5)   + s(poverty, k=5)  + s(elevation, k=5) +
-                               s(population_density,k=5) +s(radio, k=5) + s(electricity, k=5)  + 
-                               s(antenatal_care, k=5) + s(mothers_age, k=5) + s(child_population, k=5) +
-                               s(Population, k=5) + s(night_lights, k=5))
+ratio.gam.form <- as.formula(OutreachProportion ~ s(fertility, k=5) + s(elevation, k=5) + s(poverty, k=5) + s(night_lights, k=5) +
+                               + s(Population, k=5) + s(child_population, k=5) + s(population_density,k=5) +s(radio, k=5) + s(electricity, k=5)  
+                               + s(mobile_phone, k=5) + s(antenatal_care, k=5) + s(mothers_age, k=5))
 
 ratio_gam_model <- gam(ratio.gam.form, data = ratio.pentaTrain, method = "REML") 
+par(mfrow = c(2,2))
 gam.check(ratio_gam_model, k.rep = 500) 
 
 # using bootstrapped data
@@ -154,8 +141,14 @@ for (i in 1:5) {
 # plot
 summary(ratio_gam_model)
 par(mfrow = c(4,3))
-plot(ratio_gam_model)
-
+ratio_plot <- plot(ratio_gam_model)
+# poverty
+ratio_poverty <- ratio_plot[3][[1]]
+x <- ratio_poverty$x
+y <- ratio_poverty$fit # predicted output of s(poverty)
+par(mfrow=c(1,1))
+plot(x, y)
+lm(y ~ x)
 
 
 ## Rigde ----
@@ -176,6 +169,40 @@ for (i in 1:12) {
   plot(clinic_y ~ clinic_x[,i], )
   title(main = colnames(clinic_x)[i])
 }
+
+# log trans
+# on the raw df
+
+# y ~ log(x); log(y) ~ log(x)
+clinic_y <- tehsils.clinic$TotalClinicsCoverage
+clinic_x <- data.matrix(tehsils.clinic[, c(10, 8, 12, 4, 1, 2, 11, 9, 7, 16, 3, 13)])
+par(mfrow = c(3,3))
+for (i in 10:12) {
+  plot(clinic_y ~ clinic_x[,i])
+  title(main = colnames(clinic_x)[i])
+  plot(clinic_y ~ log(clinic_x[,i]))
+  title(main = paste0("log(",colnames(clinic_x)[i],")"))
+  plot(log(clinic_y) ~ log(clinic_x[,i]))
+  title(main = paste0("log(y) ~ log(",colnames(clinic_x)[i],")"))
+}
+
+
+# log(y) ~ log(x)
+## ggplot
+clinic_df <- tehsils.clinic[, c(10, 8, 12, 4, 1, 2, 11, 9, 7, 16, 3, 13, 20)]
+library(ggpubr)
+for (i in 1:12) {
+  raw <- ggplot(data = clinic_df, aes_string(x = colnames(clinic_df)[i], y = "TotalClinicsCoverage")) +
+    geom_point() +
+    ggtitle(colnames(clinic_df)[i])
+  log <- ggplot(data = clinic_df, aes_string(x = colnames(clinic_df)[i], y = "TotalClinicsCoverage")) +
+    geom_point() +
+    scale_x_log10() + scale_y_log10() +
+    ggtitle(colnames(clinic_df)[i])
+  print(ggarrange(raw, log, ncol = 2, nrow = 1,labels = c("raw", "log")))
+}
+
+
 
 
 
