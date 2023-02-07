@@ -409,6 +409,7 @@ plot(coefs$population_density)
 
 ### log transformation ----
 
+#### y ~ log(x) ----
 log.train.raw <- pentaTrain.raw[, c(1:4,7:13,16)]
 log.train.raw <- apply(log.train.raw, 2, log) %>%
   as.data.frame()
@@ -466,9 +467,9 @@ for (i in 1:1000) {
   
   raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-13]))
   preds <- raw_preds*train.sd[13]+train.mean[13]
-  rmse <- rmse(pentaTest.raw[,13],preds)
-  r2 <- R2(pentaTest.raw[,13],preds)
-  mae <- MAE(pentaTest.raw[,13],preds)
+  rmse <- rmse(pentaTest.raw[,20],preds)
+  r2 <- R2(pentaTest.raw[,20],preds)
+  mae <- MAE(pentaTest.raw[,20],preds)
   
   ## fill in the blank list
   coefs[i,] <- ridge_outcome@x
@@ -478,7 +479,7 @@ for (i in 1:1000) {
 }
 
 
-coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
+coef_final_log1 <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
                          "fertility"= c(mean(coefs$fertility), std_mean(coefs$fertility)), 
                          "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
                          "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
@@ -492,12 +493,91 @@ coef_final <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$In
                          "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
                          "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
 
-data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
-View(t(coef_final))
+metrics.log1 <- data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+metrics.log1
+View(t(coef_final_log1))
 
 
+#### log(y) ~ log(x) ----
+log.train.raw <- pentaTrain.raw[, c(1:4,7:13,16,20)]
+log.train.raw <- apply(log.train.raw, 2, log) %>%
+  as.data.frame()
+# na produced, fill with mean
+for (i in 1:ncol(log.train.raw)) {
+  if (sum(is.na(log.train.raw[,i])) > 0) {
+    log.train.raw[is.na(log.train.raw[,i]),i] <- mean(log.train.raw[,i],na.rm=TRUE)
+  }
+}
 
+# log transformation on test set
+log.test.raw <- pentaTest.raw[, c(1:4,7:13,16, 20)]
+log.test.raw <- apply(log.test.raw, 2, log) %>%
+  as.data.frame()
+# na produced, fill with mean
+for (i in 1:ncol(log.test.raw)) {
+  if (sum(is.na(log.test.raw[,i])) > 0) {
+    log.test.raw[is.na(log.test.raw[,i]),i] <- mean(log.test.raw[,i],na.rm=TRUE)
+  }
+}
 
+# model fitting
+set.seed(0)
+
+coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000),  "poverty"=rep(0, 1000), 
+                    "night_lights"=rep(0, 1000),"Population"=rep(0, 1000),"child_population"=rep(0, 1000), "population_density"=rep(0, 1000), 
+                    "radio"=rep(0, 1000), "electricity"=rep(0, 1000),"television"=rep(0, 1000),"mobile_phone"=rep(0, 1000),"mothers_age"=rep(0, 1000))
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_raw = log.train.raw[sample(1:nrow(log.train.raw), nrow(log.train.raw), replace = TRUE), ]
+  train.sd <- apply(sample_raw, 2, sd)
+  train.mean <- apply(sample_raw, 2, mean)
+  sample_d <- scale(sample_raw) %>%
+    as.data.frame()
+  
+  pentaTest <- test_scale(log.test.raw,train.mean,train.sd)
+  
+  y <- sample_d$TotalClinicsCoverage
+  x <- data.matrix(sample_d[, -13])
+  
+  ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
+  
+  best_lambda <- ridge_model$lambda.min
+  
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
+  ridge_outcome <- coef(ridge_best_model)
+  
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-13]))
+  preds <- raw_preds*train.sd[13]+train.mean[13]
+  rmse <- rmse(log.test.raw[,13],preds)
+  r2 <- R2(log.test.raw[,13],preds)
+  mae <- MAE(log.test.raw[,13],preds)
+  
+  ## fill in the blank list
+  coefs[i,] <- ridge_outcome@x
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+}
+
+coef_final_log2 <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
+                              "fertility"= c(mean(coefs$fertility), std_mean(coefs$fertility)), 
+                              "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
+                              "poverty"=c(mean(coefs$poverty), std_mean(coefs$poverty)), 
+                              "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)), 
+                              "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
+                              "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
+                              "population_density"=c(mean(coefs$population_density), std_mean(coefs$population_density)),
+                              "radio"=c(mean(coefs$radio), std_mean(coefs$radio)), 
+                              "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)), 
+                              "television"=c(mean(coefs$television), std_mean(coefs$television)), 
+                              "mobile_phone"=c(mean(coefs$mobile_phone), std_mean(coefs$mobile_phone)),
+                              "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
+
+metrics.log2 <- data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+metrics.log2
+View(t(coef_final_log2))
 
 
 ## poverty lmod ----

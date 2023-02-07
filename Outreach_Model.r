@@ -32,7 +32,7 @@ adj.r2 <- function(r2, n, p) {
 ### Take the existing Tehsil level data with covariates and Vaccination outreachs and parse out the 
 ### covariates from the Y (Outreach Vaccination Coverage)
 
-# tehsils <- read.csv("results/tehsils_complete_buffer45_9.27.csv")
+tehsils <- read.csv("results/tehsils_complete_buffer12_9.27.csv")
 tehsils.outreach <- tehsils[,c(3:17,19,21:23,27)]
 
 tehsils.outreach <- tehsils.outreach[complete.cases(tehsils.outreach),]
@@ -50,7 +50,6 @@ pentaTrain <- scale(pentaTrain.raw) %>%
   as.data.frame()
 
 pentaTest.raw <-subset(tehsils.outreach, data_split == FALSE) 
-### manually standardize
 
 
 
@@ -281,7 +280,7 @@ View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
 
 
 
-#### SE ----
+### SE ----
 set.seed(0)
 
 coefs <- data.frame("Intercept"= rep(0, 1000), "night_lights"=rep(0, 1000), "distance_to_cities"=rep(0, 1000),
@@ -394,6 +393,181 @@ data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2),
 plot(coefs$population_density)
 
 
+
+
+
+#### y ~ log(x) ----
+log.train.raw <- pentaTrain.raw[, c(1,2,4,6:8,15,16)]
+log.train.raw <- apply(log.train.raw, 2, log) %>%
+  as.data.frame()
+# na produced, fill with mean
+for (i in 1:ncol(log.train.raw)) {
+  if (sum(is.na(log.train.raw[,i])) > 0) {
+    log.train.raw[is.na(log.train.raw[,i]),i] <- mean(log.train.raw[,i],na.rm=TRUE)
+  }
+  if (sum(is.infinite(log.train.raw[,i])) > 0) {
+    log.train.raw[is.infinite(log.train.raw[,i]),i] <- mean(log.train.raw[!is.infinite(log.train.raw[,i]),i],na.rm=TRUE)
+  }
+}
+# add outcome col
+log.train.raw <- cbind(log.train.raw, pentaTrain.raw[,20])
+colnames(log.train.raw)[9] <- "TotalOutreachCoverage"
+
+# log transformation on test set
+log.test.raw <- pentaTest.raw[, c(1,2,4,6:8,15,16)]
+log.test.raw <- apply(log.test.raw, 2, log) %>%
+  as.data.frame()
+# na and inf produced, fill with mean
+for (i in 1:ncol(log.test.raw)) {
+  if (sum(is.na(log.test.raw[,i])) > 0) {
+    log.test.raw[is.na(log.test.raw[,i]),i] <- mean(log.test.raw[,i],na.rm=TRUE)
+  }
+  if (sum(is.infinite(log.test.raw[,i])) > 0) {
+    log.test.raw[is.infinite(log.test.raw[,i]),i] <- mean(log.test.raw[!is.infinite(log.test.raw[,i]),i],na.rm=TRUE)
+  }
+}
+# add outcome col
+log.test.raw <- cbind(log.test.raw, pentaTest.raw[,20])
+colnames(log.test.raw)[9] <- "TotalOutreachCoverage"
+
+# model fitting
+set.seed(0)
+
+coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000), 
+                    "night_lights"=rep(0, 1000),"distance_to_cities"=rep(0, 1000),"Population"=rep(0, 1000),"child_population"=rep(0, 1000),
+                    "antenatal_care"=rep(0, 1000),"mothers_age"=rep(0, 1000))
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_raw = log.train.raw[sample(1:nrow(log.train.raw), nrow(log.train.raw), replace = TRUE), ]
+  train.sd <- apply(sample_raw, 2, sd)
+  train.mean <- apply(sample_raw, 2, mean)
+  sample_d <- scale(sample_raw) %>%
+    as.data.frame()
+  
+  pentaTest <- test_scale(log.test.raw,train.mean,train.sd)
+  
+  y <- sample_d$TotalOutreachCoverage
+  x <- data.matrix(sample_d[, -9])
+  
+  ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
+  
+  best_lambda <- ridge_model$lambda.min
+  
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
+  ridge_outcome <- coef(ridge_best_model)
+  
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-9]))
+  preds <- raw_preds*train.sd[9]+train.mean[9]
+  rmse <- rmse(pentaTest.raw[,20],preds)
+  r2 <- R2(pentaTest.raw[,20],preds)
+  mae <- MAE(pentaTest.raw[,20],preds)
+  
+  ## fill in the blank list
+  coefs[i,] <- ridge_outcome@x
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+}
+
+
+coef_final_log1 <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
+                              "fertility"= c(mean(coefs$fertility), std_mean(coefs$fertility)), 
+                              "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
+                              "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)), 
+                              "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
+                              "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
+                              "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
+                              "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
+                              "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
+
+metrics.log1 <- data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+metrics.log1
+View(t(coef_final_log1))
+
+#### log(y) ~ log(x) ----
+log.train.raw <- pentaTrain.raw[, c(1,2,4,6:8,15,16,20)]
+log.train.raw <- apply(log.train.raw, 2, log) %>%
+  as.data.frame()
+# na produced, fill with mean
+for (i in 1:ncol(log.train.raw)) {
+  if (sum(is.na(log.train.raw[,i])) > 0) {
+    log.train.raw[is.na(log.train.raw[,i]),i] <- mean(log.train.raw[,i],na.rm=TRUE)
+  }
+  if (sum(is.infinite(log.train.raw[,i])) > 0) {
+    log.train.raw[is.infinite(log.train.raw[,i]),i] <- mean(log.train.raw[!is.infinite(log.train.raw[,i]),i],na.rm=TRUE)
+  }
+}
+
+# log transformation on test set
+log.test.raw <- pentaTest.raw[, c(1,2,4,6:8,15,16,20)]
+log.test.raw <- apply(log.test.raw, 2, log) %>%
+  as.data.frame()
+# na produced, fill with mean
+for (i in 1:ncol(log.test.raw)) {
+  if (sum(is.na(log.test.raw[,i])) > 0) {
+    log.test.raw[is.na(log.test.raw[,i]),i] <- mean(log.test.raw[,i],na.rm=TRUE)
+  }
+  if (sum(is.infinite(log.test.raw[,i])) > 0) {
+    log.test.raw[is.infinite(log.test.raw[,i]),i] <- mean(log.test.raw[!is.infinite(log.test.raw[,i]),i],na.rm=TRUE)
+  }
+}
+
+# model fitting
+set.seed(0)
+
+coefs <- data.frame("Intercept"= rep(0, 1000), "fertility"=rep(0, 1000), "elevation"=rep(0, 1000), 
+                    "night_lights"=rep(0, 1000),"distance_to_cities"=rep(0, 1000),"Population"=rep(0, 1000),"child_population"=rep(0, 1000),
+                    "antenatal_care"=rep(0, 1000),"mothers_age"=rep(0, 1000))
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_raw = log.train.raw[sample(1:nrow(log.train.raw), nrow(log.train.raw), replace = TRUE), ]
+  train.sd <- apply(sample_raw, 2, sd)
+  train.mean <- apply(sample_raw, 2, mean)
+  sample_d <- scale(sample_raw) %>%
+    as.data.frame()
+  
+  pentaTest <- test_scale(log.test.raw,train.mean,train.sd)
+  
+  y <- sample_d$TotalOutreachCoverage
+  x <- data.matrix(sample_d[, -9])
+  
+  ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
+  
+  best_lambda <- ridge_model$lambda.min
+  
+  ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
+  ridge_outcome <- coef(ridge_best_model)
+  
+  raw_preds <- predict(ridge_best_model, newx=data.matrix(pentaTest[,-9]))
+  preds <- raw_preds*train.sd[9]+train.mean[9]
+  rmse <- rmse(log.test.raw[,9],preds)
+  r2 <- R2(log.test.raw[,9],preds)
+  mae <- MAE(log.test.raw[,9],preds)
+  
+  ## fill in the blank list
+  coefs[i,] <- ridge_outcome@x
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+}
+
+coef_final_log2 <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coefs$Intercept)), 
+                              "fertility"= c(mean(coefs$fertility), std_mean(coefs$fertility)), 
+                              "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)), 
+                              "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)), 
+                              "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)), 
+                              "Population"=c(mean(coefs$Population), std_mean(coefs$Population)), 
+                              "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)), 
+                              "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
+                              "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
+
+metrics.log2 <- data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+metrics.log2
+View(t(coef_final_log2))
 
 
 # test edu_mode ----

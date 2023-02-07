@@ -301,6 +301,31 @@ for (i in 1:7) {
   title(main = colnames(outreach_x)[i])
 }
 
+#### plot log transformation ----
+# y ~ log(x); log(y) ~ log(x); log(y) ~ x; sqrt(y) ~ x; 1/y ~ x
+outreach_y <- tehsils.outreach$TotalOutreachCoverage
+outreach_x <- data.matrix(tehsils.outreach[, c(1,2,4,6:8,15,16)])
+par(mfrow = c(3,6))
+for (i in 7:8) {
+  plot(outreach_y ~ outreach_x[,i])
+  title(main = colnames(outreach_x)[i])
+  
+  plot(outreach_y ~ log(outreach_x[,i]))
+  title(main = paste0("log(",colnames(outreach_x)[i],")"))
+  
+  plot(log(outreach_y) ~ log(outreach_x[,i]))
+  title(main = paste0("log(y) ~ log(",colnames(outreach_x)[i],")"))
+  
+  plot(log(outreach_y) ~ outreach_x[,i])
+  title(main = paste0("log(y) ~ ",colnames(outreach_x)[i]))
+  
+  plot(sqrt(outreach_y) ~ outreach_x[,i])
+  title(main = paste0("sqrt(y) ~ ",colnames(outreach_x)[i]))
+  
+  plot(1/outreach_y ~ outreach_x[,i])
+  title(main = paste0("1/y ~ ",colnames(outreach_x)[i]))
+}
+
 
 ### ratio ----
 ratio_y <- ratio.pentaTrain$OutreachProportion
@@ -311,3 +336,32 @@ for (i in 1:11) {
   plot(ratio_y ~ ratio_x[,i], )
   title(main = colnames(ratio_x)[i])
 }
+
+#### log transformation ---- 
+# transformation to meet linearity
+# on the raw df
+
+# y ~ log(x); log(y) ~ log(x); log(y) ~ x; sqrt(y) ~ x; 1/y ~ x
+ratio_y <- tehsils.ratio$OutreachProportion
+ratio_x <- data.matrix(tehsils.ratio[, c(1:4, 7:11, 13,15,16)])
+par(mfrow = c(3,6))
+for (i in 10:12) {
+  plot(ratio_y ~ ratio_x[,i])
+  title(main = colnames(ratio_x)[i])
+  
+  plot(ratio_y ~ log(ratio_x[,i]))
+  title(main = paste0("log(",colnames(ratio_x)[i],")"))
+  
+  plot(log(ratio_y) ~ log(ratio_x[,i]))
+  title(main = paste0("log(y) ~ log(",colnames(ratio_x)[i],")"))
+  
+  plot(log(ratio_y) ~ ratio_x[,i])
+  title(main = paste0("log(y) ~ ",colnames(ratio_x)[i]))
+  
+  plot(sqrt(ratio_y) ~ ratio_x[,i])
+  title(main = paste0("sqrt(y) ~ ",colnames(ratio_x)[i]))
+  
+  plot(1/ratio_y ~ ratio_x[,i])
+  title(main = paste0("1/y ~ ",colnames(ratio_x)[i]))
+}
+
