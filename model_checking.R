@@ -83,12 +83,84 @@ for (i in 1:5) {
 par(mfrow = c(4,3))
 clinic_plot <-plot(clinic_gam_model)
 
-# poverty
+## poverty
 clinic_poverty <- clinic_plot[3][[1]]
 x <- clinic_poverty$x
 y <- clinic_poverty$fit # predicted output of s(poverty)
 plot(x, y)
 lm(y ~ x)
+
+# adjust model validation process
+
+## use the whole dataset to build model
+clinic.complete <- scale(tehsils.clinic) %>%
+  as.data.frame()
+clinic_gam_complete <- gam(clinic.gam.form, data = clinic.complete, method = "REML") 
+par(mfrow = c(2, 2))
+gam.check(clinic_gam_complete, k.rep = 500) 
+par(mfrow = c(4,3))
+clinic_plot <-plot(clinic_gam_complete)
+
+## repeated k-fold CV (to be edited)
+set.seed(0)
+
+coefs <- data.frame("fertility"=NA, "elevation"=NA, "poverty"=NA, "night_lights"=NA, "Population"=NA,"child_population"=NA,"population_density"=NA, 
+                    "radio"=NA,  "electricity"=NA, "television"=NA,"mobile_phone"=NA, "mothers_age"=NA)
+
+mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+for (i in 1:1000) {
+  sample_raw = pentaTrain.raw[sample(1:nrow(pentaTrain.raw), nrow(pentaTrain.raw), replace = TRUE), ]
+  train.sd <- apply(sample_raw, 2, sd)
+  train.mean <- apply(sample_raw, 2, mean)
+  sample_d <- scale(sample_raw) %>%
+    as.data.frame()
+  
+  pentaTest <- test_scale(pentaTest.raw,train.mean,train.sd)
+  
+  gam.mod <- gam(gam.form, data = sample_d, method = "REML") 
+  
+  raw_pred = predict(gam.mod,pentaTest)
+  preds <- raw_pred*train.sd[20]+train.mean[20]
+  rmse <- rmse(pentaTest.raw[,20],preds)
+  r2 <- R2(pentaTest.raw[,20],preds)
+  mae <- MAE(pentaTest.raw[,20],preds)
+  
+  
+  ## fill in the blank list
+  
+  clinic_gam_summary <- summary(gam.mod$finalModel)
+  clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
+  clinic_gam_cfs  <- as.data.frame(t(clinic_gam_cfs))
+  names(clinic_gam_cfs) <- c("fertility","poverty","population_density", 
+                             "radio",  "electricity", "antenatal_care","mothers_age")
+  
+  coefs <- rbind(coefs, clinic_gam_cfs)
+  
+  mod_performance[i,1] <- rmse
+  mod_performance[i,2] <- r2
+  mod_performance[i,3] <- mae
+  
+  print(i)
+}
+
+coefs <- coefs[-1,]
+
+coef_clean <- coefs[is.finite(rowSums(coefs)),]
+coef_final <- data.frame( "fertility"=c(mean(coef_clean$fertility),std_mean(coef_clean$fertility)), 
+                          "poverty"=c(mean(coef_clean$poverty), std_mean(coef_clean$poverty)),
+                          "population_density"=c(mean(coef_clean$population_density), std_mean(coef_clean$population_density)), 
+                          "radio"=c(mean(coef_clean$radio),std_mean(coef_clean$radio)),  
+                          "electricity"=c(mean(coef_clean$electricity), std_mean(coef_clean$electricity)),
+                          "antenatal_care"=c(mean(coef_clean$antenatal_care),std_mean(coef_clean$antenatal_care)), 
+                          "mothers_age"=c(mean(coef_clean$mothers_age),std_mean(coef_clean$mothers_age)))
+
+
+mod_clean <- mod_performance[is.finite(rowSums(coefs)),]
+data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
+View(t(coef_final))
+
+
 
 ### outreach ----
 outreach.gam.form <- as.formula(TotalOutreachCoverage ~ s(night_lights, k=5) + s(elevation, k=5) +
@@ -170,7 +242,8 @@ for (i in 1:12) {
   title(main = colnames(clinic_x)[i])
 }
 
-# log trans
+
+# transformation to meet linearity
 # on the raw df
 
 # y ~ log(x); log(y) ~ log(x)
@@ -186,6 +259,18 @@ for (i in 10:12) {
   title(main = paste0("log(y) ~ log(",colnames(clinic_x)[i],")"))
 }
 
+# log(y) ~ x; sqrt(y) ~ x; 1/y ~ x
+par(mfrow = c(3,4))
+for (i in 10:12) {
+  plot(clinic_y ~ clinic_x[,i])
+  title(main = colnames(clinic_x)[i])
+  plot(log(clinic_y) ~ clinic_x[,i])
+  title(main = paste0("log(y) ~ ",colnames(clinic_x)[i]))
+  plot(sqrt(clinic_y) ~ clinic_x[,i])
+  title(main = paste0("sqrt(y) ~ ",colnames(clinic_x)[i]))
+  plot(1/clinic_y ~ clinic_x[,i])
+  title(main = paste0("1/y ~ ",colnames(clinic_x)[i]))
+}
 
 # log(y) ~ log(x)
 ## ggplot
