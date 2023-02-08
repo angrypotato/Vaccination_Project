@@ -243,7 +243,7 @@ for (i in 1:12) {
 }
 
 
-# transformation to meet linearity
+#### plot log transformation ----
 # on the raw df
 
 # y ~ log(x); log(y) ~ log(x)
@@ -287,8 +287,39 @@ for (i in 1:12) {
   print(ggarrange(raw, log, ncol = 2, nrow = 1,labels = c("raw", "log")))
 }
 
+#### check residual plots ---- 
+# train set
+log.train.raw <- tehsils.clinic[, c(1:4,7:13,16)]
+log.train.raw <- apply(log.train.raw, 2, log) %>%
+  as.data.frame()
+## na produced, fill with mean
+for (i in 1:ncol(log.train.raw)) {
+  if (sum(is.na(log.train.raw[,i])) > 0) {
+    log.train.raw[is.na(log.train.raw[,i]),i] <- mean(log.train.raw[,i],na.rm=TRUE)
+  }
+}
+## add outcome col
+log.train.raw <- cbind(log.train.raw, tehsils.clinic[,20])
+colnames(log.train.raw)[13] <- "TotalClinicsCoverage"
 
+# fit model
+sample_d <- scale(log.train.raw) %>%
+  as.data.frame()
+y <- sample_d$TotalClinicsCoverage
+x <- data.matrix(sample_d[, -13])
 
+ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
+best_lambda <- ridge_model$lambda.min
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
+ridge_outcome <- coef(ridge_best_model)
+
+# residual plots
+fitted <- predict(ridge_best_model, newx = x) 
+residual <- y - fitted
+par(mfrow=c(1,1))
+plot(fitted, residual)
+title("clinic ridge model residual plot")
 
 
 ### outreach ----
@@ -325,6 +356,42 @@ for (i in 7:8) {
   plot(1/outreach_y ~ outreach_x[,i])
   title(main = paste0("1/y ~ ",colnames(outreach_x)[i]))
 }
+
+
+#### check residual plots ---- 
+# train set
+log.train.raw <- tehsils.outreach[, c(1,2,4,6:8,15,16)]
+log.train.raw <- apply(log.train.raw, 2, log) %>%
+  as.data.frame()
+## na produced, fill with mean
+for (i in 1:ncol(log.train.raw)) {
+  if (sum(is.na(log.train.raw[,i])) > 0) {
+    log.train.raw[is.na(log.train.raw[,i]),i] <- mean(log.train.raw[,i],na.rm=TRUE)
+  }
+}
+## add outcome col
+log.train.raw <- cbind(log.train.raw, tehsils.outreach[,20])
+colnames(log.train.raw)[9] <- "TotalOutreachCoverage"
+
+# fit model
+sample_d <- scale(log.train.raw) %>%
+  as.data.frame()
+y <- sample_d$TotalOutreachCoverage
+x <- data.matrix(sample_d[, -9])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
+best_lambda <- ridge_model$lambda.min
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
+ridge_outcome <- coef(ridge_best_model)
+
+# residual plots
+fitted <- predict(ridge_best_model, newx = x) 
+residual <- y - fitted
+par(mfrow=c(1,1))
+plot(fitted, residual)
+title("outreach ridge model residual plot")
+
 
 
 ### ratio ----
@@ -365,3 +432,36 @@ for (i in 10:12) {
   title(main = paste0("1/y ~ ",colnames(ratio_x)[i]))
 }
 
+#### check residual plots ---- 
+# train set
+log.train.raw <- tehsils.ratio[, c(1:4, 7:11, 13,15,16)]
+log.train.raw <- apply(log.train.raw, 2, log) %>%
+  as.data.frame()
+## na produced, fill with mean
+for (i in 1:ncol(log.train.raw)) {
+  if (sum(is.na(log.train.raw[,i])) > 0) {
+    log.train.raw[is.na(log.train.raw[,i]),i] <- mean(log.train.raw[,i],na.rm=TRUE)
+  }
+}
+## add outcome col
+log.train.raw <- cbind(log.train.raw, tehsils.ratio[,20])
+colnames(log.train.raw)[13] <- "OutreachProportion"
+
+# fit model
+sample_d <- scale(log.train.raw) %>%
+  as.data.frame()
+y <- sample_d$OutreachProportion
+x <- data.matrix(sample_d[, -13])
+
+ridge_model <- cv.glmnet(x, y, alpha = 0,family = c("gaussian"), standardize = F)
+best_lambda <- ridge_model$lambda.min
+
+ridge_best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda,family = c("gaussian"), standardize = F)
+ridge_outcome <- coef(ridge_best_model)
+
+# residual plots
+fitted <- predict(ridge_best_model, newx = x) 
+residual <- y - fitted
+par(mfrow=c(1,1))
+plot(fitted, residual)
+title("ratio ridge model residual plot")

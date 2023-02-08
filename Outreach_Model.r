@@ -120,8 +120,8 @@ xtable(data.frame(gbm_cfs))
 #### SE ----
 set.seed(10)
 
-coefs <- data.frame("distance_to_cities"=NA, "Population"=NA, 
-                    "child_population"=NA,"electricity"=NA,"antenatal_care"=NA, "mothers_age"=NA)
+coefs <- data.frame("fertility"=NA,"elevation"=NA,"night_lights"=NA,"distance_to_cities"=NA, "Population"=NA, 
+                    "child_population"=NA,"antenatal_care"=NA, "mothers_age"=NA)
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
 
@@ -136,13 +136,13 @@ for (i in 1:1000) {
   
   outreach.step <- gbm.step(
     data=sample_d, 
-    gbm.x =  c(6:8,11,15,16),   # selected features 
+    gbm.x =  c(1,2,4,6:8,15,16),   # selected features 
     gbm.y = 20,
     family = "gaussian",
     tree.complexity = 2,
     learning.rate = 0.005,
     bag.fraction = 0.5,
-    cv_folds = 10,
+    cv_folds = 5,
     plot.main = F,
     verbose = F
   )
@@ -156,7 +156,7 @@ for (i in 1:1000) {
   ## fill in the blank list
   
   gbm_cfs <- summary(outreach.step)
-  sing.mod <- data.frame(matrix(ncol = 6, nrow = 0))
+  sing.mod <- data.frame(matrix(ncol = 8, nrow = 0))
   names(sing.mod) <- gbm_cfs[,1]
   sing.mod[1,] <- gbm_cfs[,2]
   
@@ -171,10 +171,12 @@ for (i in 1:1000) {
 
 coefs <- coefs[-1,]
 
-coef_final <- data.frame("distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)),
+coef_final <- data.frame("fertility"=c(mean(coefs$fertility), std_mean(coefs$fertility)),
+                         "elevation"=c(mean(coefs$elevation), std_mean(coefs$elevation)),
+                         "night_lights"=c(mean(coefs$night_lights), std_mean(coefs$night_lights)),
+                         "distance_to_cities"=c(mean(coefs$distance_to_cities), std_mean(coefs$distance_to_cities)),
                          "Population"=c(mean(coefs$Population), std_mean(coefs$Population)),
                          "child_population"=c(mean(coefs$child_population), std_mean(coefs$child_population)),
-                         "electricity"=c(mean(coefs$electricity), std_mean(coefs$electricity)),
                          "antenatal_care"=c(mean(coefs$antenatal_care), std_mean(coefs$antenatal_care)),
                          "mothers_age"=c(mean(coefs$mothers_age), std_mean(coefs$mothers_age)))
 View(t(coef_final))
@@ -202,10 +204,14 @@ xtable(data.frame(outreach_gam_cfs))
 #### SE ----
 set.seed(0)
 
-coefs <- data.frame("night_lights"=NA, "distance_to_cities"=NA, "Population"=NA,
-                    "child_population"=NA,"electricity"=NA, "antenatal_care"=NA, "mothers_age"=NA)
+coefs <- data.frame("fertility"=NA,"elevation"=NA,"night_lights"=NA,"distance_to_cities"=NA, "Population"=NA, 
+                    "child_population"=NA,"antenatal_care"=NA, "mothers_age"=NA)
 
 mod_performance <- data.frame("RMSE" = rep(0, 1000), "R2" = rep(0, 1000), "MAE"=rep(0, 1000))
+
+gam.form <- as.formula(TotalOutreachCoverage ~ s(fertility, k=5) + s(elevation, k=5) +s(night_lights, k=5) + 
+                         s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + 
+                         s(antenatal_care, k=5) + s(mothers_age, k=5))
 
 for (i in 1:1000) {
   sample_raw = pentaTrain.raw[sample(1:nrow(pentaTrain.raw), nrow(pentaTrain.raw), replace = TRUE), ]
@@ -230,8 +236,8 @@ for (i in 1:1000) {
   clinic_gam_summary <- summary(gam.mod$finalModel)
   clinic_gam_cfs <- -log10(as.data.frame(summary(gam.mod)$s.table)['p-value'])
   clinic_gam_cfs  <- as.data.frame(t(clinic_gam_cfs))
-  names(clinic_gam_cfs) <- c( "night_lights", "distance_to_cities", "Population",
-                             "child_population","electricity", "antenatal_care", "mothers_age")
+  names(clinic_gam_cfs) <- c("fertility","elevation","night_lights","distance_to_cities", "Population", 
+                             "child_population","antenatal_care", "mothers_age")
   
   coefs <- rbind(coefs, clinic_gam_cfs)
   
@@ -243,13 +249,14 @@ for (i in 1:1000) {
 coefs <- coefs[-1,]
 
 coef_clean <- coefs[is.finite(rowSums(coefs)),]
-coef_final <- data.frame("night_lights"=c(mean(coef_clean$night_lights), std_mean(coef_clean$night_lights)),
-                          "distance_to_cities"=c(mean(coef_clean$distance_to_cities), std_mean(coef_clean$distance_to_cities)),
-                          "Population"=c(mean(coef_clean$Population), std_mean(coef_clean$Population)), 
-                          "child_population"=c(mean(coef_clean$child_population), std_mean(coef_clean$child_population)),
-                         "electricity"=c(mean(coef_clean$electricity), std_mean(coef_clean$electricity)),
-                          "antenatal_care"=c(mean(coef_clean$antenatal_care),std_mean(coef_clean$antenatal_care)),  
-                          "mothers_age"=c(mean(coef_clean$mothers_age),std_mean(coef_clean$mothers_age)))
+coef_final <- data.frame("fertility"=c(mean(coef_clean$fertility), std_mean(coef_clean$fertility)),
+                         "elevation"=c(mean(coef_clean$elevation), std_mean(coef_clean$elevation)),
+                         "night_lights"=c(mean(coef_clean$night_lights), std_mean(coef_clean$night_lights)),
+                         "distance_to_cities"=c(mean(coef_clean$distance_to_cities), std_mean(coef_clean$distance_to_cities)),
+                         "Population"=c(mean(coef_clean$Population), std_mean(coef_clean$Population)),
+                         "child_population"=c(mean(coef_clean$child_population), std_mean(coef_clean$child_population)),
+                         "antenatal_care"=c(mean(coef_clean$antenatal_care), std_mean(coef_clean$antenatal_care)),
+                         "mothers_age"=c(mean(coef_clean$mothers_age), std_mean(coef_clean$mothers_age)))
                          
 View(t(coef_final))                         
 mod_clean <- mod_performance[is.finite(rowSums(coefs)),]
