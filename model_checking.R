@@ -227,7 +227,7 @@ lm(y ~ x)
 
 ### in clinic ----
 clinic_y <- clinic.pentaTrain$TotalClinicsCoverage
-clinic_x <- data.matrix(clinic.pentaTrain[, c(10, 8, 12, 4, 1, 2, 11, 9, 7, 16, 3, 13)])
+clinic_x <- data.matrix(clinic.pentaTrain[, c(1:4,7:13,16)])
 
 clinic_ridge_model <- cv.glmnet(clinic_x, clinic_y, alpha = 0, standardize = F)
 
@@ -236,6 +236,8 @@ clinic_best_lambda <- clinic_ridge_model$lambda.min
 clinic_best_model <- glmnet(clinic_x, clinic_y, alpha = 0, lambda = clinic_best_lambda, standardize = F)
 
 # assumption of linearity is not met
+clinic_y <- tehsils.clinic$TotalClinicsCoverage
+clinic_x <- data.matrix(tehsils.clinic[, c(1:4,7:13,16)])
 par(mfrow =c(4,3))
 for (i in 1:12) {
   plot(clinic_y ~ clinic_x[,i], )
@@ -246,46 +248,16 @@ for (i in 1:12) {
 #### plot log transformation ----
 # on the raw df
 
-# y ~ log(x); log(y) ~ log(x)
+# y ~ log(x)
 clinic_y <- tehsils.clinic$TotalClinicsCoverage
-clinic_x <- data.matrix(tehsils.clinic[, c(10, 8, 12, 4, 1, 2, 11, 9, 7, 16, 3, 13)])
-par(mfrow = c(3,3))
-for (i in 10:12) {
-  plot(clinic_y ~ clinic_x[,i])
-  title(main = colnames(clinic_x)[i])
+clinic_x <- data.matrix(tehsils.clinic[, c(1:4,7:13,16)])
+par(mfrow = c(4,3))
+for (i in 1:12) {
   plot(clinic_y ~ log(clinic_x[,i]))
   title(main = paste0("log(",colnames(clinic_x)[i],")"))
-  plot(log(clinic_y) ~ log(clinic_x[,i]))
-  title(main = paste0("log(y) ~ log(",colnames(clinic_x)[i],")"))
 }
 
-# log(y) ~ x; sqrt(y) ~ x; 1/y ~ x
-par(mfrow = c(3,4))
-for (i in 10:12) {
-  plot(clinic_y ~ clinic_x[,i])
-  title(main = colnames(clinic_x)[i])
-  plot(log(clinic_y) ~ clinic_x[,i])
-  title(main = paste0("log(y) ~ ",colnames(clinic_x)[i]))
-  plot(sqrt(clinic_y) ~ clinic_x[,i])
-  title(main = paste0("sqrt(y) ~ ",colnames(clinic_x)[i]))
-  plot(1/clinic_y ~ clinic_x[,i])
-  title(main = paste0("1/y ~ ",colnames(clinic_x)[i]))
-}
 
-# log(y) ~ log(x)
-## ggplot
-clinic_df <- tehsils.clinic[, c(10, 8, 12, 4, 1, 2, 11, 9, 7, 16, 3, 13, 20)]
-library(ggpubr)
-for (i in 1:12) {
-  raw <- ggplot(data = clinic_df, aes_string(x = colnames(clinic_df)[i], y = "TotalClinicsCoverage")) +
-    geom_point() +
-    ggtitle(colnames(clinic_df)[i])
-  log <- ggplot(data = clinic_df, aes_string(x = colnames(clinic_df)[i], y = "TotalClinicsCoverage")) +
-    geom_point() +
-    scale_x_log10() + scale_y_log10() +
-    ggtitle(colnames(clinic_df)[i])
-  print(ggarrange(raw, log, ncol = 2, nrow = 1,labels = c("raw", "log")))
-}
 
 #### check residual plots ---- 
 # train set
@@ -323,19 +295,23 @@ title("clinic ridge model residual plot")
 
 
 ### outreach ----
-outreach_y <- outreach.pentaTrain$TotalOutreachCoverage
-outreach_x <- data.matrix(outreach.pentaTrain[, c(8,6,4,7,15,2,16)])
+outreach_y <- tehsils.outreach$TotalOutreachCoverage
+outreach_x <- data.matrix(tehsils.outreach[, c(1,2,4,6:8,15,16)])
 
 par(mfrow =c(4,2))
-for (i in 1:7) {
+for (i in 1:8) {
   plot(outreach_y ~ outreach_x[,i], )
   title(main = colnames(outreach_x)[i])
 }
 
 #### plot log transformation ----
+par(mfrow = c(4,2))
+for (i in 1:8) {
+  plot(outreach_y ~ log(outreach_x[,i]))
+  title(main = paste0("log(",colnames(outreach_x)[i],")"))
+}
+
 # y ~ log(x); log(y) ~ log(x); log(y) ~ x; sqrt(y) ~ x; 1/y ~ x
-outreach_y <- tehsils.outreach$TotalOutreachCoverage
-outreach_x <- data.matrix(tehsils.outreach[, c(1,2,4,6:8,15,16)])
 par(mfrow = c(3,6))
 for (i in 7:8) {
   plot(outreach_y ~ outreach_x[,i])
@@ -395,11 +371,11 @@ title("outreach ridge model residual plot")
 
 
 ### ratio ----
-ratio_y <- ratio.pentaTrain$OutreachProportion
-ratio_x <- data.matrix(ratio.pentaTrain[, c(10,15,9,3,16,2,8,11,4,13,1)])
+ratio_y <- tehsils.ratio$OutreachProportion
+ratio_x <- data.matrix(tehsils.ratio[, c(1:4, 7:11, 13,15,16)])
 
 par(mfrow =c(4,3))
-for (i in 1:11) {
+for (i in 1:12) {
   plot(ratio_y ~ ratio_x[,i], )
   title(main = colnames(ratio_x)[i])
 }
@@ -407,10 +383,13 @@ for (i in 1:11) {
 #### log transformation ---- 
 # transformation to meet linearity
 # on the raw df
+par(mfrow = c(4,3))
+for (i in 1:12) {
+  plot(ratio_y ~ log(ratio_x[,i]))
+  title(main = paste0("log(",colnames(ratio_x)[i],")"))
+}
 
 # y ~ log(x); log(y) ~ log(x); log(y) ~ x; sqrt(y) ~ x; 1/y ~ x
-ratio_y <- tehsils.ratio$OutreachProportion
-ratio_x <- data.matrix(tehsils.ratio[, c(1:4, 7:11, 13,15,16)])
 par(mfrow = c(3,6))
 for (i in 10:12) {
   plot(ratio_y ~ ratio_x[,i])

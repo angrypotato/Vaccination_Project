@@ -420,6 +420,7 @@ plot(coefs$population_density)
 ### log transformation ----
 
 #### y ~ log(x) ----
+
 log.train.raw <- pentaTrain.raw[, c(1:4,7:13,16)]
 log.train.raw <- apply(log.train.raw, 2, log) %>%
   as.data.frame()
@@ -447,6 +448,8 @@ for (i in 1:ncol(log.test.raw)) {
 log.test.raw <- cbind(log.test.raw, pentaTest.raw[,20])
 colnames(log.test.raw)[13] <- "TotalClinicsCoverage"
 
+
+##### without pruning ----
 # model fitting
 set.seed(0)
 
@@ -506,6 +509,34 @@ coef_final_log1 <- data.frame("Intercept"= c(mean(coefs$Intercept), std_mean(coe
 metrics.log1 <- data.frame("RMSE" = mean(mod_performance$RMSE), "R2" = mean(mod_performance$R2), "MAE" = mean(mod_performance$MAE))
 metrics.log1
 View(t(coef_final_log1))
+
+
+##### pruning ----
+y <- pentaTrain$TotalClinicsCoverage  #scaled
+
+x <- pentaTrain.raw[, c(1,2,4,7:13,16)]
+x <- apply(x, 2, log) %>%
+  as.data.frame()
+for (i in 1:ncol(x)) {
+  if (sum(is.na(x[,i])) > 0) {
+    x[is.na(x[,i]),i] <- mean(x[,i],na.rm=TRUE)
+  }
+}
+x <- scale(x)
+
+ridge_model <- cv.glmnet(x, y, alpha = 0, standardize = F)
+
+best_lambda <- ridge_model$lambda.min
+
+best_model <- glmnet(x, y, alpha = 0, lambda = best_lambda, standardize = F)
+
+clinic_ridge_preds <- predict(best_model, newx=x)
+R2(pentaTrain[,20],clinic_ridge_preds)
+adj.r2(R2(pentaTrain[,20],clinic_ridge_preds),96,11)
+
+ridge_outcome <- coef(best_model)
+View(data.frame(ridge_outcome@Dimnames[[1]], abs(ridge_outcome@x)))
+
 
 
 #### log(y) ~ log(x) ----
@@ -612,7 +643,7 @@ summary(lmod)
 
 # FOR UC ----
 
-ucs <- read.csv("results/uc_complete_buffer45.csv")
+ucs <- read.csv("results/uc_complete_buffer12.csv")
 ucs <- ucs[, c(6:12,15)] %>%  # 7 features + last col outcome
   na.omit() 
 
