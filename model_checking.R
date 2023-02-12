@@ -163,11 +163,12 @@ View(t(coef_final))
 
 
 ### outreach ----
-outreach.gam.form <- as.formula(TotalOutreachCoverage ~ s(night_lights, k=5) + s(elevation, k=5) +
+outreach.gam.form <- as.formula(TotalOutreachCoverage ~ s(fertility, k=5) + s(elevation, k=5) +s(night_lights, k=5) + 
                          s(distance_to_cities, k=5) + s(Population, k=5) + s(child_population, k=5) + 
                          s(antenatal_care, k=5) + s(mothers_age, k=5))
 
 outreach_gam_model <- gam(outreach.gam.form, data = outreach.pentaTrain, method = "REML") 
+par(mfrow=c(2,2))
 gam.check(outreach_gam_model, k.rep = 500) 
 
 # using bootstrapped data
