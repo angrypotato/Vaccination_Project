@@ -6,6 +6,9 @@ buffer <- data.frame(buffer = c(0.0001,0.0002,0.00025,0.0003,0.00035,0.0004,0.00
 
 x<-buffer$buffer
 y<-buffer$proportion
+
+png(filename="buffer_test_plot.png")
+par(mar=c(5,6,4,1)+.1)
 plot(x,y, col=ifelse(x %in% c(0.00045,0.0012), 'red', 'black'),
      xlab="Coordinates threshold [degrees]", ylab="Outreach proportion",
      cex.axis = 1.5, cex.lab = 1.8, cex = 2)
