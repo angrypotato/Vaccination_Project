@@ -36,9 +36,9 @@ corrplot(tehsils.cor, tl.col = "black", tl.cex = 1.8, tl.srt = 45, cl.cex = 1.8)
 
 ## UC level ----
 
-ucs <- read.csv("results/uc_complete_clean.csv")
+ucs <- read.csv("results/uc_complete_buffer12.csv")
 
-ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features 
+ucs.plot <- ucs[,-c(1:5,13,14)] %>%   # 7 features 
   as.data.frame() %>%
   na.omit() %>%
   dplyr::select(10:8,3,6,1,2,4)
@@ -51,7 +51,7 @@ summary(lm(TotalOutreachCoverage ~ ., ucs.plot[,-c(1,3)]))
 summary(lm(TotalClinicsCoverage ~ ., ucs.plot[,-c(2,3)]))
 
 
-ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features 
+ucs.plot <- ucs[,-c(1:5,13,14)] %>%   # 7 features 
   as.data.frame() %>%
   na.omit() %>%
   dplyr::select(10:8,3,6,1,4,2) %>%
@@ -61,7 +61,9 @@ ucs.plot <- ucs[,-c(1:4)] %>%   # 7 features
 
 ucs.cor <- cor(ucs.plot, method = c("pearson"))
 
-corrplot(ucs.cor, tl.col = "black", tl.cex = 2.2, tl.srt = 45, cl.cex =2.2)
+corrplot(ucs.cor, tl.col = "black", tl.srt = 45)
+
+corrplot(ucs.cor, tl.col = "black", tl.cex = 1, tl.srt = 45, cl.cex =1, cl.pos = 1)
 ## exported with width & height 2000
 
 
